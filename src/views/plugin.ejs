@@ -1,0 +1,42 @@
+<%- include('partials/head', { title: plugin.name, page: 'plugin' }) %>
+<main class="container page narrow">
+  <a href="/" class="back-link">&larr; Voltar para a loja</a>
+
+  <section class="card product-detail">
+    <h1><%= plugin.name %></h1>
+    <p class="desc"><%= plugin.description %></p>
+    <p class="price big">R$ <%= plugin.price.toFixed(2) %></p>
+
+    <% if (plugin.customTag !== false) { %>
+      <p class="badge cpu">Este plugin é entregue com a <strong>sua tag personalizada</strong> no nome.</p>
+    <% } %>
+  </section>
+
+  <section class="card">
+    <h2>Finalizar pedido</h2>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert error"><%= error %></div>
+    <% } %>
+
+    <form action="/checkout/create" method="POST" class="form">
+      <input type="hidden" name="pluginId" value="<%= plugin.id %>">
+
+      <label>
+        Seu e-mail (para receber o download)
+        <input type="email" name="email" required placeholder="exemplo@email.com">
+      </label>
+
+      <% if (plugin.customTag !== false) { %>
+        <label>
+          Tag personalizada (substitui a tag tipo <code>[TRS]</code> no plugin)
+          <input type="text" name="tag" required maxlength="16" placeholder="Ex: TRS">
+        </label>
+      <% } %>
+
+      <button type="submit" class="btn-primary full">Ir para o pagamento</button>
+      <p class="muted small">Pagamento processado com segurança pelo Mercado Pago.</p>
+    </form>
+  </section>
+</main>
+<%- include('partials/tail') %>

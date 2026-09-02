@@ -1,0 +1,156 @@
+<%- include('partials/head', { title: 'Painel Admin', page: 'admin' }) %>
+<main class="container page">
+  <div class="admin-topbar">
+    <h1>Painel Admin</h1>
+    <form action="/admin/logout" method="POST">
+      <button type="submit" class="btn-secondary-small">Sair</button>
+    </form>
+  </div>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert error"><%= error %></div>
+  <% } %>
+
+  <!-- ====== SUGESTÕES ====== -->
+  <section class="card" id="sugestoes">
+    <h2>Sugestões (<%= suggestions.length %>)</h2>
+    <% if (suggestions.length === 0) { %>
+      <p class="muted">Nenhuma sugestão no momento.</p>
+    <% } %>
+    <% suggestions.forEach(s => { %>
+      <% const age = now - new Date(s.createdAt).getTime(); %>
+      <% const restante = Math.max(0, Math.ceil((TTL - age) / 3600000)); %>
+      <div class="sugestao <%= s.read ? 'lida' : '' %>">
+        <div class="sugestao-head">
+          <strong><%= s.author %></strong>
+          <div>
+            <span class="status <%= s.read ? 'status-delivered' : 'status-pending' %>"><%= s.read ? 'LIDA' : 'NÃO LIDA' %></span>
+            <% if (!s.read) { %>
+              <span class="muted small">expira em ~<%= restante %>h</span>
+            <% } %>
+          </div>
+        </div>
+        <p class="sugestao-text"><%= s.text %></p>
+        <div class="sugestao-actions">
+          <span class="muted small"><%= new Date(s.createdAt).toLocaleString('pt-BR') %></span>
+          <div>
+            <% if (!s.read) { %>
+              <form action="/admin/suggestions/<%= s.id %>/read" method="POST" style="display:inline">
+                <button class="btn-mini">Marcar como lida</button>
+              </form>
+            <% } %>
+            <form action="/admin/suggestions/<%= s.id %>/delete" method="POST" style="display:inline">
+              <button class="btn-mini danger">Excluir</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </section>
+
+  <!-- ====== NOVO PLUGIN ====== -->
+  <section class="card" id="novo">
+    <h2>+ Cadastrar plugin</h2>
+    <form action="/admin/plugins" method="POST" enctype="multipart/form-data" class="form">
+      <div class="form-row">
+        <label>Nome do plugin
+          <input type="text" name="name" required placeholder="Ex: Anti-Flood">
+        </label>
+        <label>Preço (R$)
+          <input type="number" name="price" step="0.01" min="0" required>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="customTag" checked> Permite tag customizada
+        </label>
+      </div>
+      <label>Descrição
+        <textarea name="description" rows="2" placeholder="O que o plugin faz..."></textarea>
+      </label>
+      <label>Arquivo .sma (base)
+        <input type="file" name="sma" accept=".sma">
+        <span class="muted small">O sistema troca a tag neste arquivo e compila.</span>
+      </label>
+      <button type="submit" class="btn-primary">Cadastrar plugin</button>
+    </form>
+  </section>
+
+  <!-- ====== PLUGINS ====== -->
+  <section class="card" id="plugins">
+    <h2>Plugins (<%= plugins.length %>)</h2>
+    <table class="table">
+      <thead>
+        <tr><th>Nome</th><th>Preço</th><th>Tag</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% plugins.forEach(p => { %>
+          <tr>
+            <td><%= p.name %></td>
+            <td>R$ <%= Number(p.price).toFixed(2) %></td>
+            <td><%= p.customTag !== false ? 'Sim' : 'Não' %></td>
+            <td><span class="status <%= p.active ? 'status-active' : 'status-inactive' %>"><%= p.active ? 'Ativo' : 'Inativo' %></span></td>
+            <td class="actions">
+              <form action="/admin/plugins/<%= p.id %>/edit" method="POST" style="display:inline-flex;gap:6px;align-items:center">
+                <input type="number" name="price" step="0.01" min="0" value="<%= p.price %>"
+                       title="Valor em R$" style="width:80px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 6px">
+                <button class="btn-mini" title="Salvar valor">Salvar valor</button>
+              </form>
+              <form action="/admin/plugins/<%= p.id %>/toggle" method="POST" style="display:inline">
+                <button class="btn-mini"><%= p.active ? 'Desativar' : 'Ativar' %></button>
+              </form>
+              <form action="/admin/plugins/<%= p.id %>/delete" method="POST" style="display:inline"
+                    onsubmit="return confirm('Excluir o plugin <%= p.name.replace(/'/g, "\\'") %>?')">
+                <button class="btn-mini danger">Excluir</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ====== PEDIDOS ====== -->
+  <section class="card" id="orders">
+    <h2>Pedidos (<%= orders.length %>)</h2>
+    <table class="table">
+      <thead>
+        <tr><th>ID</th><th>Plug-in</th><th>E-mail</th><th>Tag</th><th>Valor</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% orders.forEach(o => { %>
+          <tr>
+            <td class="mono"><%= o.id.slice(0,8) %></td>
+            <td><%= o.pluginName %></td>
+            <td><%= o.buyerEmail %></td>
+            <td><%= o.customTag || '-' %></td>
+            <td>R$ <%= Number(o.price).toFixed(2) %></td>
+            <td>
+              <span class="status status-<%= o.status %>">
+                <%= o.paymentStatus === 'approved' ? 'PAGO' : (o.status === 'delivered' ? 'Entregue' : o.status) %>
+              </span>
+            </td>
+            <td class="actions">
+              <a href="/admin/orders/<%= o.id %>" class="btn-mini">Ver</a>
+              <% if (o.adminSmaUrl || o.pendingSma) { %>
+                <a href="/admin/orders/<%= o.id %>/sma" class="btn-mini" title="Baixar .sma com a tag para conferir">.sma</a>
+              <% } %>
+              <% if (o.status === 'pending') { %>
+                <form action="/admin/orders/<%= o.id %>/approve" method="POST" style="display:inline">
+                  <button class="btn-mini">Aprovar</button>
+                </form>
+              <% } %>
+              <% if (o.status === 'needs_compile') { %>
+                <form action="/admin/orders/<%= o.id %>/upload" method="POST" enctype="multipart/form-data" style="display:inline-flex;gap:6px;align-items:center">
+                  <input type="file" name="amxx" accept=".amxx" required
+                         title="Envie o .amxx compilado para entregar"
+                         style="max-width:140px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 6px;font-size:12px">
+                  <button class="btn-mini">Enviar .amxx</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </section>
+</main>
+<%- include('partials/tail') %>

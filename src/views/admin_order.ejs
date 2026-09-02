@@ -1,0 +1,38 @@
+<%- include('partials/head', { title: 'Pedido', page: 'admin' }) %>
+<main class="container page narrow">
+  <a href="/admin#orders" class="back-link">&larr; Voltar</a>
+  <section class="card">
+    <h1>Pedido <%= order.id != null ? order.id.slice(0,8) : order.id %></h1>
+    <p class="mono"><%= order.id %></p>
+
+    <table class="kv">
+      <tr><td>Plugin</td><td><%= order.pluginName %></td></tr>
+      <tr><td>Comprador</td><td><%= order.buyerName || '-' %></td></tr>
+      <tr><td>E-mail</td><td><%= order.buyerEmail %></td></tr>
+      <tr><td>Tag customizada</td><td><%= order.customTag || '-' %></td></tr>
+      <tr><td>Valor</td><td>R$ <%= Number(order.price).toFixed(2) %></td></tr>
+      <tr><td>Status</td><td><span class="status status-<%= order.status %>"><%= order.status %></span></td></tr>
+      <tr><td>Pagamento</td><td><%= order.paymentStatus %> (<%= order.paymentId || '-' %>)</td></tr>
+      <tr><td>Criado em</td><td><%= new Date(order.createdAt).toLocaleString('pt-BR') %></td></tr>
+      <% if (order.deliveryType) { %>
+        <tr><td>Tipo de entrega</td><td><%= order.deliveryType.toUpperCase() %> (o .amxx vai ao cliente, o .sma fica para conferência)</td></tr>
+      <% } %>
+    </table>
+
+    <% if (order.downloadUrl) { %>
+      <p><a href="<%= order.downloadUrl %>" class="btn-primary">Baixar .amxx (envio ao cliente)</a></p>
+    <% } %>
+
+    <% if (order.adminSmaUrl || order.pendingSma) { %>
+      <div class="alert">
+        <p><strong>Conferência da tag</strong> — veja o <code>.sma</code> personalizado com a tag <code><%= order.customTag %></code>:</p>
+        <p><a href="/admin/orders/<%= order.id %>/sma" class="btn-secondary">Baixar .sma (conferir tag)</a></p>
+      </div>
+    <% } %>
+
+    <% if (order.notice) { %>
+      <div class="alert"><%= order.notice %></div>
+    <% } %>
+  </section>
+</main>
+<%- include('partials/tail') %>

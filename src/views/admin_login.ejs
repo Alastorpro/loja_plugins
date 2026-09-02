@@ -1,0 +1,17 @@
+<%- include('partials/head', { title: 'Login', page: 'admin' }) %>
+<main class="container page narrow">
+  <section class="card center">
+    <h1>Painel Admin</h1>
+    <% if (error) { %>
+      <div class="alert error"><%= error %></div>
+    <% } %>
+    <form action="/admin/login" method="POST" class="form">
+      <label>
+        Senha
+        <input type="password" name="password" required autofocus>
+      </label>
+      <button type="submit" class="btn-primary full">Entrar</button>
+    </form>
+  </section>
+</main>
+<%- include('partials/tail') %>

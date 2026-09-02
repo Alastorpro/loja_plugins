@@ -1,0 +1,11 @@
+node_modules/
+.env
+.data/
+*.log
+*.md.bak
+
+# Compilador AMXX local (Windows). No Render ele é baixado pelo setup-compiler.sh
+compiler/
+
+# Arquivos gerados
+plugins-src/*.amxx

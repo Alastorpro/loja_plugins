@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - <%= app.name %></title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container nav-inner">
+      <a href="/" class="navbar-brand">
+      <span class="brand">[DEV] Alastor</span>
+      <span class="brand-sub">Vendas e criador de plugin</span>
+    </a>
+    <div>
+        <a href="/" class="nav-link">Loja</a>
+        <a href="/admin/login" class="nav-link">Admin</a>
+      </div>
+    </div>
+  </nav>
+  <main class="container">
+    <%- body %>
+  </main>
+  <footer class="footer">
+    <div class="container">
+      &copy; 2026 <strong>[DEV] Alastor</strong> — Vendas e criador de plugin · Plugins Counter-Strike 1.6 com entrega automática via Mercado Pago.
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<%- include('partials/head', { title: 'Sugestão', page: 'sugestao' }) %>
+<main class="container page narrow">
+  <section class="card">
+    <h1>Deixe sua sugestão</h1>
+    <p class="desc">Ideias de plugins, melhorias na loja, correções... manda aqui! Sua sugestão fica disponível para o admin por <strong>24 horas</strong> — depois some automaticamente se não for lida.</p>
+
+    <% if (success) { %>
+      <div class="alert success"><%= success %></div>
+    <% } %>
+    <% if (error) { %>
+      <div class="alert error"><%= error %></div>
+    <% } %>
+
+    <form action="/sugestao" method="POST" class="form">
+      <label>
+        Seu nome (opcional)
+        <input type="text" name="nome" maxlength="60" placeholder="Ex: fulano">
+      </label>
+      <label>
+        Sugestão
+        <textarea name="texto" rows="5" required maxlength="2000" placeholder="Descreva sua sugestão..."></textarea>
+      </label>
+      <button type="submit" class="btn-primary full">Enviar sugestão</button>
+    </form>
+  </section>
+</main>
+<%- include('partials/tail') %>

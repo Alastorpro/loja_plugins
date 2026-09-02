@@ -1,0 +1,31 @@
+<%- include('partials/head', { title: 'Loja', page: 'index' }) %>
+<main class="container page">
+  <section class="hero">
+    <p class="hero-nick">[DEV] <span>Alastor</span></p>
+    <h1>&#9654; Vendas e criador de <span style="color:var(--primary);text-shadow:0 0 16px var(--red-glow)">plugins CS 1.6</span></h1>
+    <p>Compre plugins com <strong>tag personalizada</strong> no seu nome. Receba o <code>.amxx</code> pronto automaticamente após o pagamento.</p>
+    <p class="muted">Pagamento via Mercado Pago · Entrega imediata · Suporte</p>
+  </section>
+
+  <section class="grid-cards">
+    <% if (plugins.length === 0) { %>
+      <div class="card full">
+        <p>Ainda não há plugins cadastrados. Volte em breve!</p>
+      </div>
+    <% } %>
+    <% plugins.forEach(p => { %>
+      <div class="card product-card">
+        <div class="product-header">
+          <span class="product-name"><%= p.name %></span>
+          <span class="price">R$ <%= p.price.toFixed(2) %></span>
+        </div>
+        <p class="desc"><%= p.description %></p>
+        <% if (p.customTag !== false) { %>
+          <p class="badge cpu">Tag customizada</p>
+        <% } %>
+        <a href="/plugin/<%= p.id %>" class="btn-primary">Comprar</a>
+      </div>
+    <% }) %>
+  </section>
+</main>
+<%- include('partials/tail') %>

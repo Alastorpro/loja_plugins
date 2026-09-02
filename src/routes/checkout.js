@@ -1,0 +1,82 @@
+const express = require('express');
+const router = express.Router();
+const { getPluginById, createOrder } = require('../data/store');
+const { createPreference } = require('../services/mercadopago');
+
+// POST /checkout/create - cria o pedido e redireciona pro Mercado Pago
+router.post('/create', async (req, res) => {
+  const { pluginId, email, tag } = req.body;
+
+  const plugin = getPluginById(pluginId);
+  if (!plugin || plugin.active === false) {
+    return res.status(404).render('404');
+  }
+
+  // Valida o email
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.render('plugin', { plugin, error: 'E-mail inválido. Informe um e-mail válido.' });
+  }
+
+  // Se o plugin permite tag customizada mas a tag está vazia, obriga
+  if (plugin.customTag !== false && !tag) {
+    return res.render('plugin', { plugin, error: 'Informe a tag que deseja usar no plugin.' });
+  }
+
+  if (tag && tag.length > 16) {
+    return res.render('plugin', { plugin, error: 'A tag deve ter no máximo 16 caracteres.' });
+  }
+
+  // Idempotência por sessão para evitar pedidos duplicados
+  const sessionKey = `order_${pluginId}_${email}_${tag || ''}`;
+  if (req.session[sessionKey]) {
+    return res.redirect(`/pedido/${req.session[sessionKey]}`);
+  }
+
+  try {
+    const order = createOrder({
+      plugin,
+      buyer: { email },
+      customTag: tag || '',
+      price: plugin.price,
+      preferenceId: null
+    });
+
+    // Avisa no Discord sobre o novo pedido iniciado
+    const { notifyCheckout } = require('../services/discord');
+    notifyCheckout(order);
+
+    // ===== MODO DEMO: simula pagamento aprovado (teste local sem Mercado Pago) =====
+    if (process.env.DEMO_MODE === 'on' || process.env.NODE_ENV === 'development' && !process.env.MP_ACCESS_TOKEN) {
+      console.log('[DEMO] Pagamento simulado aprovado para o pedido', order.id);
+      const { processApprovedPayment } = require('../services/delivery');
+      await processApprovedPayment({
+        id: 'demo-' + Date.now(),
+        external_reference: order.id,
+        status: 'approved'
+      });
+      req.session[sessionKey] = order.id;
+      return res.redirect(`/pedido/${order.id}`);
+    }
+
+    // Cria a preference no Mercado Pago
+    const pref = await createPreference({
+      order, plugin,
+      customTag: tag || '',
+      buyerEmail: email
+    });
+
+    // Atualiza o pedido com o id da preference
+    const { updateOrder } = require('../data/store');
+    updateOrder(order.id, { preferenceId: pref.id });
+
+    // Sessão para idempotência
+    req.session[sessionKey] = order.id;
+
+    res.redirect(pref.init_point);
+  } catch (err) {
+    console.error('[Checkout] Erro ao criar pagamento:', err.message);
+    res.render('plugin', { plugin, error: 'Erro ao criar o pagamento. Tente novamente.' });
+  }
+});
+
+module.exports = router;

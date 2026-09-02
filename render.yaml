@@ -1,0 +1,9 @@
+{
+  "//": "Configuração do Render (Blueprints - Node)",
+  "buildCommand": "sh setup-compiler.sh && npm install",
+  "startCommand": "npm start",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "autoDeploy": true
+}

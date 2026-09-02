@@ -1,0 +1,22 @@
+<%- include('partials/head', { title: 'Obrigado!', page: 'obrigado' }) %>
+<main class="container page narrow">
+  <section class="card center">
+    <div class="big-icon">&#10003;</div>
+    <h1>Pedido recebido!</h1>
+
+    <% if (order) { %>
+      <p>O pagamento do pedido <strong><%= order.id.slice(0,8) %></strong> foi aprovado.</p>
+      <% if (order.downloadUrl) { %>
+        <p>Seu plugin está pronto!</p>
+        <a href="<%= order.downloadUrl %>" class="btn-primary">Baixar plugin</a>
+      <% } else { %>
+        <p>Estamos preparando o arquivo do seu plugin com a tag <strong><%= order.customTag %></strong>.</p>
+        <p class="muted">Em poucos instantes o download ficará disponível. Acompanhe em:</p>
+        <a href="/pedido/<%= order.id %>" class="btn-secondary">Ver meu pedido</a>
+      <% } %>
+    <% } else { %>
+      <p>O pagamento foi realizado. Enviaremos o plugin para o seu e-mail em instantes.</p>
+    <% } %>
+  </section>
+</main>
+<%- include('partials/tail') %>

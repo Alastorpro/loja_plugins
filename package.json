@@ -1,0 +1,27 @@
+{
+  "name": "cs16-plugin-shop",
+  "version": "1.0.0",
+  "description": "Loja de plugins Counter-Strike 1.6 com tag customizada, pagamento via Mercado Pago e entrega automática do .amxx.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "mercadopago": "^2.0.16",
+    "multer": "^2.0.1",
+    "pdfkit": "^0.15.0",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,37 @@
+<%- include('partials/head', { title: 'Meu pedido', page: 'pedido' }) %>
+<main class="container page narrow">
+  <section class="card">
+    <h1>Status do pedido</h1>
+
+    <div class="order-status">
+      <% const labels = {
+        pending: 'Aguardando pagamento',
+        paid: 'Pagamento confirmado',
+        delivered: 'Aprovado e entregue',
+        needs_compile: 'Pagamento aprovado - compilando...',
+        error: 'Erro no processamento'
+      }; %>
+      <span class="status status-<%= order.status %>"><%= labels[order.status] || order.status %></span>
+    </div>
+
+    <p class="muted">Pedido: <%= order.id %></p>
+
+    <p>Plugin: <strong><%= order.pluginName %></strong></p>
+    <% if (order.customTag) { %>
+      <p>Tag: <strong><%= order.customTag %></strong></p>
+    <% } %>
+    <p>Valor: <strong>R$ <%= Number(order.price).toFixed(2) %></strong></p>
+
+    <% if (order.downloadUrl) { %>
+      <div class="alert success">
+        <p>Seu plugin está pronto para download!</p>
+        <a href="<%= order.downloadUrl %>" class="btn-primary">Baixar plugin (.amxx)</a>
+      </div>
+    <% } else if (order.status === 'needs_compile') { %>
+      <p class="muted">Pagamento confirmado. Seu plugin está sendo preparado — em breve o download do <code>.amxx</code> aparecerá aqui.</p>
+    <% } else if (order.status === 'pending') { %>
+      <p class="muted">Assim que o pagamento for aprovado, o download aparecerá aqui automaticamente.</p>
+    <% } %>
+  </section>
+</main>
+<%- include('partials/tail') %>
