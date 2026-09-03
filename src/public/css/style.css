@@ -169,6 +169,22 @@ body {
 .sugestao-text { margin: 8px 0; white-space: pre-wrap; font-size: 14px; }
 .sugestao-actions button { margin-left: 6px; }
 
+/* Compilador */
+.compile-output {
+  background: #0a0a0c;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  max-height: 320px;
+  overflow: auto;
+  margin-top: 10px;
+}
+
 .footer {
   margin-top: auto; text-align: center; padding: 20px;
   color: var(--muted); font-size: 13px;

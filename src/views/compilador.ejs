@@ -1,0 +1,39 @@
+<%- include('partials/head', { title: 'Compilador AMXX', page: 'compilador' }) %>
+<main class="container page narrow">
+  <section class="card">
+    <h1>Compilar plugin online</h1>
+    <p class="desc">Envie seu arquivo <code>.sma</code> e receba o <code>.amxx</code> compilado na hora. Se o plugin usar includes customizados (<code>.inc</code>), envie-os também.</p>
+
+    <% if (error) { %>
+      <div class="alert error"><%= error %></div>
+    <% } %>
+    <% if (success) { %>
+      <div class="alert success"><%= success %>
+        <% if (downloadUrl) { %>
+          <p style="margin-top:8px"><a href="<%= downloadUrl %>" class="btn-primary">Baixar .amxx</a></p>
+        <% } %>
+      </div>
+    <% } %>
+
+    <form action="/compilador" method="POST" enctype="multipart/form-data" class="form">
+      <label>
+        Arquivo .sma
+        <input type="file" name="sma" accept=".sma" required>
+      </label>
+      <label>
+        Includes customizados (.inc) — opcional
+        <input type="file" name="incs" accept=".inc" multiple>
+        <span class="muted small">Envie os .inc que faltam para compilar (fakemeta, cstrike, etc.).</span>
+      </label>
+      <button type="submit" class="btn-primary full">Compilar agora</button>
+    </form>
+  </section>
+
+  <% if (output) { %>
+    <section class="card">
+      <h2>Resultado da compilação</h2>
+      <pre class="compile-output"><%= output %></pre>
+    </section>
+  <% } %>
+</main>
+<%- include('partials/tail') %>

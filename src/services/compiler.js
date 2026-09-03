@@ -158,8 +158,94 @@ async function deliverPlugin(plugin, customTag) {
   };
 }
 
+/**
+ * Compilação avulsa (tipo amx.worldcs.ro):
+ * o usuário envia um .sma e opcionalmente includes (.inc) customizados.
+ * Copia tudo para uma pasta de trabalho, compila e retorna o .amxx.
+ *
+ * Retorna:
+ *   { success: true,  output, amxxPath, savedPath }
+ *   { success: false, output, reason }
+ */
+async function compileStandalone({ smaPath, incFiles = [] }) {
+  const id = uuidv4();
+  const workDir = path.join(WORK_DIR, 'standalone', id);
+  fs.mkdirSync(workDir, { recursive: true });
+
+  // Pasta include customizada (cópia para não mexer no compilador original)
+  const customInclude = path.join(workDir, 'custom_include');
+  fs.mkdirSync(customInclude, { recursive: true });
+
+  const baseName = path.basename(smaPath).replace(/\.sma$/i, '') || 'plugin';
+  const smaCopy = path.join(workDir, `${baseName}.sma`);
+  fs.copyFileSync(smaPath, smaCopy);
+
+  // Copia os includes customizados
+  for (const inc of incFiles || []) {
+    try {
+      fs.copyFileSync(inc, path.join(customInclude, path.basename(inc)));
+    } catch (e) {
+      /* ignora arquivo inválido */
+    }
+  }
+
+  if (!compilerInfo.configured) {
+    return { success: false, reason: 'compiler-not-configured', output: 'Compilador não configurado no servidor.' };
+  }
+
+  // O amxxpc procura os includes na pasta "include" relativa ao próprio executável.
+  // Para usar includes customizados, copiamos os .inc para lá temporariamente.
+  const compilerIncludeDir = path.join(path.dirname(compilerInfo.path), 'include');
+  const copiedInc = [];
+  if (customIncludeExists(customInclude)) {
+    try {
+      for (const f of fs.readdirSync(customInclude)) {
+        if (f.toLowerCase().endsWith('.inc')) {
+          fs.copyFileSync(path.join(customInclude, f), path.join(compilerIncludeDir, f));
+          copiedInc.push(f);
+        }
+      }
+    } catch (e) {
+      /* sem permissão ou sem pasta */
+    }
+  }
+
+  let result;
+  try {
+    result = await compileSma(smaCopy);
+  } finally {
+    // limpa os includes customizados que copiamos no compilador
+    for (const f of copiedInc) {
+      try { fs.unlinkSync(path.join(compilerIncludeDir, f)); } catch (e) {}
+    }
+  }
+
+  if (result.success) {
+    const amxxSrc = smaCopy.replace(/\.sma$/i, '.amxx');
+    const savedPath = path.join(DELIVER_DIR, `${baseName}_${id.slice(0, 8)}.amxx`);
+    if (fs.existsSync(amxxSrc)) {
+      fs.copyFileSync(amxxSrc, savedPath);
+      return { success: true, output: result.output, amxxPath: savedPath };
+    }
+    return { success: false, reason: 'output-not-found', output: result.output };
+  }
+
+  return { success: false, reason: result.reason, output: result.output };
+}
+
+function customIncludeExists(dir) {
+  try {
+    return fs.readdirSync(dir).some(f => f.toLowerCase().endsWith('.inc'));
+  } catch (e) {
+    return false;
+  }
+}
+
 function isCompilerConfigured() {
   return compilerInfo.configured;
 }
 
-module.exports = { initCompiler, deliverPlugin, prepareSource, applyTag, isCompilerConfigured };
+module.exports = {
+  initCompiler, deliverPlugin, prepareSource, applyTag,
+  compileStandalone, isCompilerConfigured
+};
