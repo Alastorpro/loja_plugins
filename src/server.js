@@ -25,7 +25,7 @@ app.locals.app = {
 };
 
 app.locals.contact = {
-  discord: process.env.DISCORD_INVITE_URL || 'https://discord.gg/hcRAPWBrh9',
+  discord: process.env.DISCORD_LINK || null,
   whatsapp: process.env.WHATSAPP_NUMBER
     ? 'https://wa.me/' + process.env.WHATSAPP_NUMBER + '?text=' + encodeURIComponent('Olá! Vim pelo site da loja de plugins de CS 1.6.')
     : null
