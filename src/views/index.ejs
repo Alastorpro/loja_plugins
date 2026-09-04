@@ -20,7 +20,9 @@
           <span class="price">R$ <%= p.price.toFixed(2) %></span>
         </div>
         <p class="desc"><%= p.description %></p>
-        <% if (p.customTag !== false) { %>
+        <% if (p.amxxFile) { %>
+          <p class="badge cpu">Pronto (.amxx)</p>
+        <% } else if (p.customTag !== false) { %>
           <p class="badge cpu">Tag customizada</p>
         <% } %>
         <a href="/plugin/<%= p.id %>" class="btn-primary">Comprar</a>

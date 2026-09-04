@@ -70,6 +70,10 @@
         <input type="file" name="sma" accept=".sma">
         <span class="muted small">O sistema troca a tag neste arquivo e compila.</span>
       </label>
+      <label>Arquivo .amxx pronto (opcional)
+        <input type="file" name="amxx" accept=".amxx">
+        <span class="muted small">Se enviar o .amxx pronto, o cliente recebe <strong>exatamente este arquivo</strong>, sem tag nem edição. (Sem .amxx, o plugin usa o .sma com tag.)</span>
+      </label>
       <button type="submit" class="btn-primary">Cadastrar plugin</button>
     </form>
   </section>
@@ -79,14 +83,14 @@
     <h2>Plugins (<%= plugins.length %>)</h2>
     <table class="table">
       <thead>
-        <tr><th>Nome</th><th>Preço</th><th>Tag</th><th>Status</th><th></th></tr>
+        <tr><th>Nome</th><th>Preço</th><th>Entrega</th><th>Status</th><th></th></tr>
       </thead>
       <tbody>
         <% plugins.forEach(p => { %>
           <tr>
             <td><%= p.name %></td>
             <td>R$ <%= Number(p.price).toFixed(2) %></td>
-            <td><%= p.customTag !== false ? 'Sim' : 'Não' %></td>
+            <td><%= p.amxxFile ? 'Pronto (.amxx)' : 'Com tag (.sma)' %></td>
             <td><span class="status <%= p.active ? 'status-active' : 'status-inactive' %>"><%= p.active ? 'Ativo' : 'Inativo' %></span></td>
             <td class="actions">
               <form action="/admin/plugins/<%= p.id %>/edit" method="POST" style="display:inline-flex;gap:6px;align-items:center">

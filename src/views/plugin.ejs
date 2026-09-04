@@ -7,8 +7,10 @@
     <p class="desc"><%= plugin.description %></p>
     <p class="price big">R$ <%= plugin.price.toFixed(2) %></p>
 
-    <% if (plugin.customTag !== false) { %>
+    <% if (plugin.customTag !== false && !plugin.amxxFile) { %>
       <p class="badge cpu">Este plugin é entregue com a <strong>sua tag personalizada</strong> no nome.</p>
+    <% } else { %>
+      <p class="badge cpu">Este plugin é entregue <strong>pronto</strong> (.amxx sem edição).</p>
     <% } %>
   </section>
 
@@ -27,7 +29,7 @@
         <input type="email" name="email" required placeholder="exemplo@email.com">
       </label>
 
-      <% if (plugin.customTag !== false) { %>
+      <% if (plugin.customTag !== false && !plugin.amxxFile) { %>
         <label>
           Tag personalizada (substitui a tag tipo <code>[TRS]</code> no plugin)
           <input type="text" name="tag" required maxlength="16" placeholder="Ex: TRS">

@@ -37,6 +37,34 @@ async function processApprovedPayment(payment) {
     return null;
   }
 
+  // ===== Plugin pronto (.amxx fixo): entrega direto, SEM edição/tag/compilação =====
+  if (plugin.amxxFile && fs.existsSync(plugin.amxxFile)) {
+    const finalDir = path.join(DELIVER_DIR, order.id);
+    fs.mkdirSync(finalDir, { recursive: true });
+    const baseName = (plugin.name || 'plugin').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const finalPath = path.join(finalDir, `${baseName}.amxx`);
+    fs.copyFileSync(plugin.amxxFile, finalPath);
+
+    const logged = {
+      paymentId,
+      status: 'delivered',
+      downloadUrl: `/download/${order.id}/${path.basename(finalPath)}`,
+      deliveryFile: finalPath,
+      deliveryType: 'amxx',
+      saved: 'pronto',
+      adminSmaFile: null,
+      adminSmaUrl: null,
+      pendingSma: null,
+      compileOutput: null,
+      paymentStatus: 'approved'
+    };
+
+    updateOrder(order.id, logged);
+    console.log(`[Entrega] Pedido ${order.id} entregue (.amxx pronto, sem edição)`);
+    notifyOrder(order, { status: 'delivered' });
+    return logged;
+  }
+
   try {
     const fileInfo = await deliverPlugin(plugin, order.customTag);
 

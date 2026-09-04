@@ -60,6 +60,8 @@ function addPlugin(data) {
     customTag: data.customTag !== false,
     // Caminho do arquivo .sma original (base)
     sourceFile: data.sourceFile || null,
+    // Caminho do arquivo .amxx pronto (entrega direta, sem edição/tag)
+    amxxFile: data.amxxFile || null,
     createdAt: new Date().toISOString()
   };
   plugins.push(plugin);

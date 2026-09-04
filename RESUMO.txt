@@ -1,0 +1,151 @@
+# RESUMO - Loja de Plugins CS 1.6 ([DEV] Alastor)
+# Atualizado: 02/09/2026
+
+=============================================================
+O QUE ESTÁ PRONTO E FUNCIONANDO
+=============================================================
+
+Site completo em C:\Users\Windows\Desktop\ajuda (Node.js + Express)
+Tema vermelho e preto.
+
+== MODELO DE VENDA (2 opções por plugin) ==
+Agora cada plugin pode ser cadastrado de 2 formas no admin:
+1) "PRONTO (.amxx fixo)" - admin sobe um .amxx final.
+   Cliente paga e recebe EXATAMENTE esse .amxx, SEM tag, SEM compilao.
+2) "COM TAG (.sma)" - admin sobe o .sma.
+   Sistema troca tag tipo [TRS] pela do cliente e compila na hora.
+
+Admin pode enviar .amxx e/ou .sma no mesmo cadastro.
+- Coluna "Entrega" no admin mostra "Pronto (.amxx)" ou "Com tag (.sma)".
+- Pgina do plugin pronto NAO pede tag (badge "entregue pronto").
+- delivery.js: se plugin tem amxxFile -> entrega direto (saved=pronto).
+  Se tem so .sma -> fluxo normal de tag/compilacao.
+- TESTADO: compra de plugin pronto entregou .amxx (1341 bytes), download 200,
+  customTag vazio, saved=pronto. Plugin com tag segue funcionando.
+
+## Fluxo de venda (com tag / .sma)
+1. Cliente escolhe plugin, informa e-mail + TAG (ex: FURIA)
+2. Sistema procura tags tipo [TRS] no .sma e troca pela tag do cliente
+3. Pagamento via Mercado Pago (webhook em /api/webhook/mp)
+4. Após aprovado -> compila .amxx AUTOMATICAMENTE (compilador AMXX 1.10)
+5. Cliente baixa o .amxx; admin baixa o .sma pra conferir a tag
+
+## Pagina de compilador online (tipo amx.worldcs.ro)
+- URL: /compilador (link "Compilador" no menu)
+- Envia .sma (+ .inc customizados se precisar) e recebe o .amxx compilado
+- Funciona e testado (gerou .amxx valido)
+
+## Entrega automatica do .amxx - CONFIRMADA FUNCIONANDO
+- Teste real: pagamento simulado -> order status=delivered, deliveryType=amxx
+- Compilador: AMX Mod X Compiler 1.10.0.5478
+- Arquivo amxxpc.exe em: C:\Users\Windows\Desktop\ajuda\compiler\addons\amxmodx\scripting\amxxpc.exe
+
+## Painel admin (/admin - senha = ADMIN_PASSWORD no .env)
+- Cadastrar/editar valor/ativar/excluir plugins (upload do .sma base)
+- Pedidos: ver, aprovar manualmente, enviar .amxx (p/ needs_compile), baixar .sma
+- Suggests: ver, marcar lida, excluir. NAO LIDA expira em 24h (purge automatico a cada hora)
+
+=============================================================
+CONFIGURACAO ATUAL NO .env (02/09)
+=============================================================
+- DEMO_MODE = off   (pagamento real)
+- MP_ACCESS_TOKEN = APP_USR-... de producao (FUNCIONANDO, testado via API)
+- MP_PUBLIC_KEY = APP_PUB-... (corrigido, era APP_PUB-APP_USR-... com prefixo duplicado)
+- NODE_ENV = development
+- APPROVAL_MODE = auto
+- AMXXPC_PATH = C:\Users\Windows\Desktop\ajuda\compiler\addons\amxmodx\scripting\amxxpc.exe
+- ADMIN_PASSWORD = Alastor105004349
+- APP_URL = http://localhost:3000
+
+== IMPORTANTE SOBRE A ENTREGA AUTOMATICA ==
+- Local com DEMO_MODE=off: MP real NAO alcança localhost -> cai em "compila manual".
+  Isso NAO é bug do compilador. Sem URL publica, o MP não avisa o site do pagamento.
+- Para testar local: DEMO_MODE=on simula pagamento aprovado -> entrega .amxx automatico.
+- Em producao (Render) com URL publica + webhook -> funciona 100% automatico.
+
+=============================================================
+GIT / GITHUB
+=============================================================
+- Repo: https://github.com/Alastorpro/loja_plugins.git
+- Branch: main
+- Ultimo commit: 84c020c "Adiciona pagina de compilacao online e funcao de compilacao avulsa"
+- Working tree limpo (tudo commitado)
+- .gitignore ignora: node_modules/, .env, .data/, compiler/, *.log
+- gh CLI instalado em C:\Program Files\GitHub CLI\gh.exe, logado como Alastorpro
+
+=============================================================
+PENDE╠NCIA / SEGURANCA
+=============================================================
+- Revogar o GitHub PAT que foi colado no chat (envio comprometido):
+  https://github.com/settings/tokens
+- Trocar ADMIN_PASSWORD em producao (atual: Alastor105004349)
+
+=============================================================
+PROXIMO PASSO (AMANHA) - DEPLOY NO RENDER
+=============================================================
+
+Objetivo: publicar para ter URL publica e entregar .amxx automatico com pagamento REAL.
+
+## Passo 1 - Plataforma
+- Acessar https://dashboard.render.com
+- Criar conta (recomendado: login com GitHub)
+- IMPORTANTE: confirmar email na conta (link chega por email) antes de criar servico
+
+## Passo 2 - Criar Web Service
+- Botao "+ New" (azul no topo) -> "Web Service"
+- Conectar GitHub -> repositório Alastorpro/loja_plugins
+
+## Passo 3 - Configuracao
+- Name: loja-plugins
+- Region: Oregon (US) ou Frankfurt
+- Branch: main
+- Runtime: Node
+- Build Command: sh setup-compiler.sh && npm install
+- Start Command: npm start
+- Instance Type: Free
+
+## Passo 4 - Variaveis de ambiente (CRITICO)
+Adicionar cada uma:
+- MP_ACCESS_TOKEN = token APP_USR-... do MP
+- MP_PUBLIC_KEY = token APP_PUB-... do MP
+- DEMO_MODE = off
+- APPROVAL_MODE = auto
+- ADMIN_PASSWORD = Alastor105004349
+- AMXXPC_PATH = /app/compiler/addons/amxmodx/scripting/amxxpc
+- APP_URL = https://loja-plugins.onrender.com  (preencher quando souber a URL)
+- WEBHOOK_SECRET = uma-chave-secreta-muito-longa-123456
+- DISCORD_WEBHOOK_URL = (opcional)
+
+## Passo 5 - Criar
+- Botao "Create Web Service"
+- Deploy leva 3-5 min (baixa compilador AMXX + instala deps)
+
+## Passo 6 - Depois de subir
+1. Atualizar APP_URL para a URL real que o Render der
+2. No painel do Mercado Pago, configurar URL de notificacao/webhook:
+   https://loja-plugins.onrender.com/api/webhook/mp
+   (evento: Pagamentos)
+
+Pronto -> entrega automatica 100% com pagamento real, sem clique manual.
+
+=============================================================
+COMO RODAR LOCALMENTE DE NOVO
+=============================================================
+cd C:\Users\Windows\Desktop\ajuda
+npm run dev     (ou npm start)
+Site em http://localhost:3000
+
+=============================================================
+ARQUIVOS IMPORTANTES
+=============================================================
+- src/services/compiler.js  -> troca de tag + compilacao (+ compileStandalone)
+- src/services/delivery.js  -> entrega automatica do .amxx
+- src/services/mercadopago.js -> integracao MP
+- src/services/discord.js   -> avisos no Discord
+- src/routes/admin.js + src/views/admin.ejs -> painel
+- src/routes/public.js      -> rotas publicas (inclui /compilador)
+- src/views/compilador.ejs  -> pagina do compilador online
+- .data/                    -> plugins, pedidos e sugestoes (banco JSON)
+- compiler/                 -> compilador AMXX instalado (NAO vai pro git)
+- plugins-src/              -> .sma de exemplo (antiflood.sma, vipsystem.sma)
+- setup-compiler.sh + render.yaml -> configuracao do deploy no Render

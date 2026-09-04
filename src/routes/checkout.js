@@ -18,7 +18,8 @@ router.post('/create', async (req, res) => {
   }
 
   // Se o plugin permite tag customizada mas a tag está vazia, obriga
-  if (plugin.customTag !== false && !tag) {
+  // (exceto plugins .amxx prontos, que não recebem tag)
+  if (plugin.customTag !== false && !plugin.amxxFile && !tag) {
     return res.render('plugin', { plugin, error: 'Informe a tag que deseja usar no plugin.' });
   }
 

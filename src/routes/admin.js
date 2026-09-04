@@ -10,7 +10,7 @@ const { prepareSource } = require('../services/compiler');
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 
-// ===== Upload de .sma =====
+// ===== Upload de .sma e/ou .amxx pronto =====
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
@@ -23,12 +23,12 @@ const upload = multer({
     }
   }),
   fileFilter: (req, file, cb) => {
-    if (!file.originalname.toLowerCase().endsWith('.sma')) {
-      return cb(new Error('Apenas arquivos .sma são permitidos.'));
-    }
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (file.fieldname === 'sma' && ext !== '.sma') return cb(new Error('O arquivo .sma deve ter extensão .sma.'));
+    if (file.fieldname === 'amxx' && ext !== '.amxx') return cb(new Error('O arquivo .amxx deve ter extensão .amxx.'));
     cb(null, true);
   }
-}).single('sma');
+}).fields([{ name: 'sma', maxCount: 1 }, { name: 'amxx', maxCount: 1 }]);
 
 function requireAuth(req, res, next) {
   if (req.session.isAdmin) return next();
@@ -82,12 +82,16 @@ router.post('/plugins', requireAuth, (req, res) => {
     if (!name || !price) {
       return res.render('admin', adminData({ error: 'Nome e preço são obrigatórios.' }));
     }
+    const files = req.files || {};
+    const sma = files['sma'] && files['sma'][0];
+    const amxx = files['amxx'] && files['amxx'][0];
     store.addPlugin({
       name,
       description,
       price,
       customTag: usesCustomTag,
-      sourceFile: req.file ? req.file.path : null
+      sourceFile: sma ? sma.path : null,
+      amxxFile: amxx ? amxx.path : null
     });
     res.redirect('/admin#plugins');
   });
