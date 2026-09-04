@@ -149,3 +149,34 @@ ARQUIVOS IMPORTANTES
 - compiler/                 -> compilador AMXX instalado (NAO vai pro git)
 - plugins-src/              -> .sma de exemplo (antiflood.sma, vipsystem.sma)
 - setup-compiler.sh + render.yaml -> configuracao do deploy no Render
+
+=============================================================
+BANCO DE DADOS (POSTGRES) - plugins + valores persistidos
+=============================================================
+- Se a variavel DATABASE_URL estiver DEFINIDA no .env, o site usa PostgreSQL.
+- Se estiver VAZIA, usa os arquivos JSON locais de .data/ (como antes).
+- Com DATABASE_URL, plugins/pedidos/sugestoes (e os bytes dos arquivos) ficam
+  no banco e SOBREVIVEM a deploys/restarts (resolve o disco efemero do Render free).
+
+O que e salvo no banco:
+- plugins: nome, descricao, preco, ativo, custom_tag, e os bytes do .sma/.amxx
+  (os arquivos sao materializados no disco .data/sources em cada leitura)
+- orders: tudo do pedido, incluindo os BYTES do .amxx entregue (delivery_data)
+  e do .sma com tag (admin_sma_data) -> download funciona mesmo apos restart
+- suggestions: sugestoes
+
+Para criar o banco gratuito no Render:
+Dashboard -> New -> PostgreSQL -> instancia free:
+  - Nome: loja-plugins-db
+  - Note a string "Internal Database URL" (formato postgres://...)
+Coloque essa URL na variavel DATABASE_URL do seu Web Service (voce pode
+usar o painel do Render: "Environment" -> Add). Mantenha DATABASE_SSL=true.
+
+Arquivos novos/alterados:
+- src/data/db.js        -> camada PostgreSQL (Pool, tabelas, CRUD)
+- src/data/store.js     -> escolhe banco ou JSON (fallback); materializa arquivos
+- src/services/delivery.js -> salva bytes entregues para download persistente
+- .env.example / render.yaml -> variaveis DATABASE_URL / DATABASE_SSL
+
+NOTA: sem DATABASE_URL no Render, os plugins cadastrados somem a cada deploy.
+Para operacao real de vendas, configure o PostgreSQL.

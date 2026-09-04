@@ -48,8 +48,8 @@ async function start() {
   initCompiler();
   initMercadoPago();
   // Sugestões não lidas expiram após 24h
-  purgeExpiredSuggestions();
-  setInterval(() => purgeExpiredSuggestions(), 60 * 60 * 1000);
+  await purgeExpiredSuggestions();
+  setInterval(() => { purgeExpiredSuggestions().catch(() => {}); }, 60 * 60 * 1000);
   app.listen(process.env.PORT || 3000, () => {
     console.log(`Servidor rodando em ${process.env.APP_URL || 'http://localhost:3000'}`);
   });

@@ -19,7 +19,7 @@ async function processApprovedPayment(payment) {
   const paymentId = String(payment.id);
 
   // Procura o pedido pelo external_reference (id do pedido) informado na preference
-  let order = getOrderById(payment.external_reference) || getOrderByPaymentId(paymentId);
+  let order = await getOrderById(payment.external_reference) || await getOrderByPaymentId(paymentId);
 
   if (!order) {
     console.warn('[Entrega] Pedido não encontrado para o pagamento', paymentId);
@@ -31,9 +31,9 @@ async function processApprovedPayment(payment) {
     return order;
   }
 
-  const plugin = getPluginById(order.pluginId);
+  const plugin = await getPluginById(order.pluginId);
   if (!plugin) {
-    updateOrder(order.id, { status: 'error', error: 'plugin-removido', paymentStatus: 'approved' });
+    await updateOrder(order.id, { status: 'error', error: 'plugin-removido', paymentStatus: 'approved' });
     return null;
   }
 
@@ -44,6 +44,9 @@ async function processApprovedPayment(payment) {
     const baseName = (plugin.name || 'plugin').replace(/[^a-zA-Z0-9_-]/g, '_');
     const finalPath = path.join(finalDir, `${baseName}.amxx`);
     fs.copyFileSync(plugin.amxxFile, finalPath);
+
+    // Guarda os bytes no banco para o download sobreviver a restart/deploy
+    const deliveryData = fs.readFileSync(finalPath);
 
     const logged = {
       paymentId,
@@ -56,10 +59,12 @@ async function processApprovedPayment(payment) {
       adminSmaUrl: null,
       pendingSma: null,
       compileOutput: null,
-      paymentStatus: 'approved'
+      paymentStatus: 'approved',
+      deliveryData,
+      deliveryName: path.basename(finalPath)
     };
 
-    updateOrder(order.id, logged);
+    await updateOrder(order.id, logged);
     console.log(`[Entrega] Pedido ${order.id} entregue (.amxx pronto, sem edição)`);
     notifyOrder(order, { status: 'delivered' });
     return logged;
@@ -78,10 +83,14 @@ async function processApprovedPayment(payment) {
       // Guarda também o .sma personalizado (só visível no admin, para conferir a tag)
       let adminSmaFile = null;
       let adminSmaUrl = null;
+      let adminSmaData = null;
+      let adminSmaName = null;
       if (fileInfo.smaPath && fs.existsSync(fileInfo.smaPath)) {
         adminSmaFile = path.join(finalDir, path.basename(fileInfo.smaPath));
         fs.copyFileSync(fileInfo.smaPath, adminSmaFile);
         adminSmaUrl = `/admin/orders/${order.id}/sma`;
+        adminSmaData = fs.readFileSync(adminSmaFile);
+        adminSmaName = path.basename(adminSmaFile);
       }
 
       const logged = {
@@ -94,23 +103,35 @@ async function processApprovedPayment(payment) {
         adminSmaUrl,
         pendingSma: null,
         compileOutput: fileInfo.output,
-        paymentStatus: 'approved'
+        paymentStatus: 'approved',
+        deliveryData: fs.readFileSync(finalPath),
+        deliveryName: path.basename(finalPath),
+        adminSmaData,
+        adminSmaName
       };
 
-      updateOrder(order.id, logged);
+      await updateOrder(order.id, logged);
       console.log(`[Entrega] Pedido ${order.id} entregue (.amxx)`);
       notifyOrder(order, { status: 'delivered' });
       return logged;
     }
 
     // Não compilou: pedido fica pendente de compilação manual pelo admin
-    const pendingSma = fileInfo.smaPath || null;
-    updateOrder(order.id, {
+    let pendingSma = fileInfo.smaPath || null;
+    let pendingSmaData = null;
+    let pendingSmaName = null;
+    if (pendingSma && fs.existsSync(pendingSma)) {
+      pendingSmaData = fs.readFileSync(pendingSma);
+      pendingSmaName = path.basename(pendingSma);
+    }
+    await updateOrder(order.id, {
       paymentId,
       status: 'needs_compile',
       paymentStatus: 'approved',
       pendingSma,
       compileOutput: fileInfo.output,
+      adminSmaData: pendingSmaData,
+      adminSmaName: pendingSmaName,
       notice: 'Pagamento aprovado, mas o .amxx ainda precisa ser compilado/enviado pelo admin.'
     });
     console.warn(`[Entrega] Pedido ${order.id} precisa de compilação manual (compilador indisponível/falha).`);
@@ -118,7 +139,7 @@ async function processApprovedPayment(payment) {
     return { status: 'needs_compile', pendingSma };
   } catch (err) {
     console.error('[Entrega] Erro ao preparar entrega do pedido', order.id, err);
-    updateOrder(order.id, { status: 'error', error: err.message, paymentStatus: 'approved' });
+    await updateOrder(order.id, { status: 'error', error: err.message, paymentStatus: 'approved' });
     return null;
   }
 }

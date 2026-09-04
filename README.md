@@ -113,7 +113,8 @@ pagamento aprovado** e entrega o `.amxx` na hora. Fluxo de teste:
 ```
 src/
   server.js            # entrypoint Express
-  data/store.js        # persistência (.sma base + pedidos em JSON)
+  data/store.js        # persistência (PostgreSQL via DATABASE_URL ou JSON em .data/)
+  data/db.js           # camada PostgreSQL (plugins, pedidos, sugestões + bytes)
   services/compiler.js # troca de tag ([TAG]) + compilação via amxxpc
   services/mercadopago.js
   services/delivery.js # entrega automática pós-pagamento (.amxx)

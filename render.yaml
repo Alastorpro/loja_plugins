@@ -3,7 +3,8 @@
   "buildCommand": "sh setup-compiler.sh && npm install",
   "startCommand": "npm start",
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "DATABASE_SSL": "true"
   },
   "autoDeploy": true
 }

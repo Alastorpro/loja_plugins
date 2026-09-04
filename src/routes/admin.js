@@ -56,16 +56,16 @@ router.post('/logout', (req, res) => {
 });
 
 // ===== Painel =====
-router.get('/', requireAuth, (req, res) => {
-  res.render('admin', adminData());
+router.get('/', requireAuth, async (req, res) => {
+  res.render('admin', await adminData());
 });
 
 // ===== Helper com os dados do painel =====
-function adminData(extra) {
+async function adminData(extra) {
   return Object.assign({
-    plugins: store.getPlugins(),
-    orders: store.getOrders().slice().reverse(),
-    suggestions: store.getSuggestions().slice().reverse(),
+    plugins: await store.getPlugins(),
+    orders: (await store.getOrders()).slice().reverse(),
+    suggestions: (await store.getSuggestions()).slice().reverse(),
     now: Date.now(),
     TTL: 24 * 60 * 60 * 1000
   }, extra || {});
@@ -73,36 +73,41 @@ function adminData(extra) {
 
 // ===== Plugins: criar =====
 router.post('/plugins', requireAuth, (req, res) => {
-  upload(req, res, (err) => {
+  upload(req, res, async (err) => {
     if (err) {
-      return res.render('admin', adminData({ error: err.message }));
+      return res.render('admin', await adminData({ error: err.message }));
     }
     const { name, description, price, customTag } = req.body;
     const usesCustomTag = customTag === 'on';
     if (!name || !price) {
-      return res.render('admin', adminData({ error: 'Nome e preço são obrigatórios.' }));
+      return res.render('admin', await adminData({ error: 'Nome e preço são obrigatórios.' }));
     }
     const files = req.files || {};
     const sma = files['sma'] && files['sma'][0];
     const amxx = files['amxx'] && files['amxx'][0];
-    store.addPlugin({
-      name,
-      description,
-      price,
-      customTag: usesCustomTag,
-      sourceFile: sma ? sma.path : null,
-      amxxFile: amxx ? amxx.path : null
-    });
+    try {
+      await store.addPlugin({
+        name,
+        description,
+        price,
+        customTag: usesCustomTag,
+        sourceFile: sma ? sma.path : null,
+        amxxFile: amxx ? amxx.path : null
+      });
+    } catch (e) {
+      console.error('[Admin] Falha ao salvar plugin:', e.message);
+      return res.render('admin', await adminData({ error: 'Falha ao salvar o plugin: ' + e.message }));
+    }
     res.redirect('/admin#plugins');
   });
 });
 
 // ===== Plugins: editar (nome/preço/descrição) =====
-router.post('/plugins/:id/edit', requireAuth, (req, res) => {
-  const p = store.getPluginById(req.params.id);
+router.post('/plugins/:id/edit', requireAuth, async (req, res) => {
+  const p = await store.getPluginById(req.params.id);
   if (!p) return res.redirect('/admin#plugins');
   const { name, description, price } = req.body;
-  store.updatePlugin(p.id, {
+  await store.updatePlugin(p.id, {
     name: name || p.name,
     description: description !== undefined ? description : p.description,
     price: price !== '' ? Number(price) : p.price
@@ -111,25 +116,27 @@ router.post('/plugins/:id/edit', requireAuth, (req, res) => {
 });
 
 // ===== Plugins: ativar/desativar =====
-router.post('/plugins/:id/toggle', requireAuth, (req, res) => {
-  const p = store.getPluginById(req.params.id);
-  if (p) store.updatePlugin(p.id, { active: !p.active });
+router.post('/plugins/:id/toggle', requireAuth, async (req, res) => {
+  const p = await store.getPluginById(req.params.id);
+  if (p) await store.updatePlugin(p.id, { active: !p.active });
   res.redirect('/admin#plugins');
 });
 
 // ===== Plugins: excluir =====
-router.post('/plugins/:id/delete', requireAuth, (req, res) => {
-  const p = store.getPluginById(req.params.id);
-  if (p && p.sourceFile && fs.existsSync(p.sourceFile)) {
-    try { fs.unlinkSync(p.sourceFile); } catch (e) {}
+router.post('/plugins/:id/delete', requireAuth, async (req, res) => {
+  const p = await store.getPluginById(req.params.id);
+  if (p) {
+    for (const f of [p.sourceFile, p.amxxFile]) {
+      try { if (f && fs.existsSync(f)) fs.unlinkSync(f); } catch (e) {}
+    }
   }
-  store.deletePlugin(req.params.id);
+  await store.deletePlugin(req.params.id);
   res.redirect('/admin#plugins');
 });
 
 // ===== Pedidos: aprovar manualmente =====
 router.post('/orders/:id/approve', requireAuth, async (req, res) => {
-  const order = store.getOrderById(req.params.id);
+  const order = await store.getOrderById(req.params.id);
   if (!order) return res.redirect('/admin#orders');
   if (order.status === 'pending') {
     const fakePayment = {
@@ -164,58 +171,75 @@ const uploadAmxx = multer({
 }).single('amxx');
 
 router.post('/orders/:id/upload', requireAuth, (req, res) => {
-  uploadAmxx(req, res, (err) => {
-    const order = store.getOrderById(req.params.id);
+  uploadAmxx(req, res, async (err) => {
+    const order = await store.getOrderById(req.params.id);
     if (err || !order) {
       console.error('[Admin] Upload .amxx falhou:', err && err.message);
       return res.redirect('/admin#orders');
     }
     if (req.file) {
       const fileName = path.basename(req.file.path);
-      updateOrDeliver(order, `/download/${order.id}/${fileName}`);
+      await updateOrDeliver(order, `/download/${order.id}/${fileName}`, req.file.path);
       console.log(`[Admin] .amxx enviado manualmente para o pedido ${order.id}`);
     }
     res.redirect('/admin#orders');
   });
 });
 
-function updateOrDeliver(order, downloadUrl) {
-  store.updateOrder(order.id, {
+async function updateOrDeliver(order, downloadUrl, uploadedPath) {
+  let deliveryData = null;
+  let deliveryName = null;
+  try {
+    deliveryData = fs.readFileSync(uploadedPath);
+    deliveryName = path.basename(uploadedPath);
+  } catch (e) { /* ignora */ }
+  await store.updateOrder(order.id, {
     status: 'delivered',
     deliveryType: 'amxx',
     downloadUrl,
-    deliveryFile: null,
+    deliveryFile: uploadedPath || null,
+    deliveryData,
+    deliveryName,
     notice: 'Entregue via upload manual do .amxx pelo admin.',
     paymentStatus: order.paymentStatus || 'approved'
   });
 }
 
 // ===== Pedidos: visualizar =====
-router.get('/orders/:id', requireAuth, (req, res) => {
-  const order = store.getOrderById(req.params.id);
+router.get('/orders/:id', requireAuth, async (req, res) => {
+  const order = await store.getOrderById(req.params.id);
   if (!order) return res.status(404).render('404');
   res.render('admin_order', { order });
 });
 
 // ===== Pedidos: baixar o .sma personalizado (conferir a tag) =====
-router.get('/orders/:id/sma', requireAuth, (req, res) => {
-  const order = store.getOrderById(req.params.id);
+router.get('/orders/:id/sma', requireAuth, async (req, res) => {
+  const order = await store.getOrderById(req.params.id);
   if (!order) return res.status(404).render('404');
   const smaPath = order.adminSmaFile || order.pendingSma;
-  if (!smaPath || !fs.existsSync(smaPath)) return res.status(404).render('404');
-  const base = (order.pluginName || 'plugin').replace(/[^a-zA-Z0-9_-]/g, '_');
-  res.download(smaPath, `${base}_${order.id.slice(0, 8)}.sma`);
+  if (smaPath && fs.existsSync(smaPath)) {
+    const base = (order.pluginName || 'plugin').replace(/[^a-zA-Z0-9_-]/g, '_');
+    return res.download(smaPath, `${base}_${order.id.slice(0, 8)}.sma`);
+  }
+  // Fallback: .sma guardado no banco (bytes) — sobrevive a restart/deploy
+  if (order.adminSmaData && order.adminSmaData.length) {
+    const base = (order.pluginName || 'plugin').replace(/[^a-zA-Z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Disposition', `attachment; filename="${base}_${order.id.slice(0, 8)}.sma"`);
+    return res.send(Buffer.from(order.adminSmaData));
+  }
+  return res.status(404).render('404');
 });
 
 // ===== Sugestões: marcar como lida =====
-router.post('/suggestions/:id/read', requireAuth, (req, res) => {
-  store.markSuggestionRead(req.params.id);
+router.post('/suggestions/:id/read', requireAuth, async (req, res) => {
+  await store.markSuggestionRead(req.params.id);
   res.redirect('/admin#sugestoes');
 });
 
 // ===== Sugestões: excluir =====
-router.post('/suggestions/:id/delete', requireAuth, (req, res) => {
-  store.deleteSuggestion(req.params.id);
+router.post('/suggestions/:id/delete', requireAuth, async (req, res) => {
+  await store.deleteSuggestion(req.params.id);
   res.redirect('/admin#sugestoes');
 });
 

@@ -7,7 +7,7 @@ const { createPreference } = require('../services/mercadopago');
 router.post('/create', async (req, res) => {
   const { pluginId, email, tag } = req.body;
 
-  const plugin = getPluginById(pluginId);
+  const plugin = await getPluginById(pluginId);
   if (!plugin || plugin.active === false) {
     return res.status(404).render('404');
   }
@@ -34,7 +34,7 @@ router.post('/create', async (req, res) => {
   }
 
   try {
-    const order = createOrder({
+    const order = await createOrder({
       plugin,
       buyer: { email },
       customTag: tag || '',
@@ -68,7 +68,7 @@ router.post('/create', async (req, res) => {
 
     // Atualiza o pedido com o id da preference
     const { updateOrder } = require('../data/store');
-    updateOrder(order.id, { preferenceId: pref.id });
+    await updateOrder(order.id, { preferenceId: pref.id });
 
     // Sessão para idempotência
     req.session[sessionKey] = order.id;

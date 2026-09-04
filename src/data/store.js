@@ -1,17 +1,31 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const db = require('./db');
 
 const DATA_DIR = path.join(__dirname, '..', '..', '.data');
+const SOURCES_DIR = path.join(DATA_DIR, 'sources');
 const PLUGINS_FILE = path.join(DATA_DIR, 'plugins.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const SUGGESTIONS_FILE = path.join(DATA_DIR, 'suggestions.json');
 const SUGGESTION_TTL = 24 * 60 * 60 * 1000; // 24 horas
 
-function initData() {
+let useDb = false;
+
+// ===== Inicialização =====
+async function initData() {
+  await db.initDb();
+  useDb = db.isEnabled();
   ensureDir();
-  if (!fs.existsSync(PLUGINS_FILE)) writeJSON(PLUGINS_FILE, []);
-  if (!fs.existsSync(ORDERS_FILE)) writeJSON(ORDERS_FILE, []);
+  if (useDb) {
+    // Garante a pasta de materialização dos arquivos (.sma/.amxx)
+    if (!fs.existsSync(SOURCES_DIR)) fs.mkdirSync(SOURCES_DIR, { recursive: true });
+    console.log('[DB] Armazenamento via PostgreSQL ativo.');
+  } else {
+    if (!fs.existsSync(PLUGINS_FILE)) writeJSON(PLUGINS_FILE, []);
+    if (!fs.existsSync(ORDERS_FILE)) writeJSON(ORDERS_FILE, []);
+    console.log('[DB] Armazenamento via arquivos JSON (.data/).');
+  }
 }
 
 function ensureDir() {
@@ -32,25 +46,104 @@ function writeJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
+// ===== Materialização dos arquivos do plugin (Postgres -> disco) =====
+// O código existente (compilador, entrega, views) espera um caminho em
+// `sourceFile`/`amxxFile`. Quando o plugin vem do banco, os bytes ficam no
+// Postgres (smaData/amxxData) e são escritos em .data/sources/<id>.sma|.amxx.
+function materializePlugin(p) {
+  if (!p) return p;
+  if (p.smaData && p.smaData.length) {
+    const srcPath = path.join(SOURCES_DIR, `${p.id}.sma`);
+    if (!fs.existsSync(srcPath)) writeBytes(srcPath, Buffer.from(p.smaData));
+    p.sourceFile = srcPath;
+  }
+  if (p.amxxData && p.amxxData.length) {
+    const amxxPath = path.join(SOURCES_DIR, `${p.id}.amxx`);
+    if (!fs.existsSync(amxxPath)) writeBytes(amxxPath, Buffer.from(p.amxxData));
+    p.amxxFile = amxxPath;
+  }
+  // Remove os buffers do objeto público (os caminhos já foram materializados)
+  delete p.smaData;
+  delete p.amxxData;
+  if (!p.sourceFile) p.sourceFile = null;
+  if (!p.amxxFile) p.amxxFile = null;
+  return p;
+}
+
+function writeBytes(filePath, buf) {
+  ensureDir();
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, buf);
+}
+
+function removeFile(filePath) {
+  try {
+    if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch (e) { /* ignora */ }
+}
+
+// Lê os bytes de um arquivo enviado no upload (multer) para salvar no banco.
+function bufferFromPath(filePath) {
+  if (!filePath) return { buf: null, name: null };
+  try {
+    return { buf: fs.readFileSync(filePath), name: path.basename(filePath) };
+  } catch (e) {
+    return { buf: null, name: null };
+  }
+}
+
+// Remove os temporários do multer depois de guardá-los no banco.
+function cleanupTempFiles(...paths) {
+  for (const p of paths) {
+    if (!p) continue;
+    try {
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    } catch (e) { /* ignora */ }
+  }
+}
+
 // ===== Plugins =====
-function getPlugins() {
+async function getPlugins() {
+  if (useDb) {
+    return ((await db.getPlugins()) || []).map(materializePlugin);
+  }
   return readJSON(PLUGINS_FILE, []);
 }
 
-function savePlugins(plugins) {
-  writeJSON(PLUGINS_FILE, plugins);
+async function getPublicPlugins() {
+  return (await getPlugins()).filter(p => p.active !== false);
 }
 
-function getPublicPlugins() {
-  return getPlugins().filter(p => p.active !== false);
+async function getPluginById(id) {
+  if (useDb) {
+    return materializePlugin(await db.getPluginById(id));
+  }
+  return (await getPlugins()).find(p => p.id === id);
 }
 
-function getPluginById(id) {
-  return getPlugins().find(p => p.id === id);
-}
+async function addPlugin(data) {
+  if (useDb) {
+    const sma = bufferFromPath(data.sourceFile);
+    const amxx = bufferFromPath(data.amxxFile);
+    const record = {
+      id: uuidv4(),
+      name: data.name,
+      description: data.description || '',
+      price: Number(data.price) || 0,
+      active: data.active !== false,
+      customTag: data.customTag !== false,
+      smaData: sma.buf,
+      amxxData: amxx.buf,
+      smaName: sma.name,
+      amxxName: amxx.name,
+      createdAt: new Date().toISOString()
+    };
+    const saved = await db.addPlugin(record);
+    cleanupTempFiles(data.sourceFile, data.amxxFile);
+    return materializePlugin(saved);
+  }
 
-function addPlugin(data) {
-  const plugins = getPlugins();
+  const plugins = readJSON(PLUGINS_FILE, []);
   const plugin = {
     id: uuidv4(),
     name: data.name,
@@ -58,52 +151,93 @@ function addPlugin(data) {
     price: Number(data.price),
     active: data.active !== false,
     customTag: data.customTag !== false,
-    // Caminho do arquivo .sma original (base)
     sourceFile: data.sourceFile || null,
-    // Caminho do arquivo .amxx pronto (entrega direta, sem edição/tag)
     amxxFile: data.amxxFile || null,
     createdAt: new Date().toISOString()
   };
   plugins.push(plugin);
-  savePlugins(plugins);
+  writeJSON(PLUGINS_FILE, plugins);
   return plugin;
 }
 
-function updatePlugin(id, data) {
-  const plugins = getPlugins();
+async function updatePlugin(id, data) {
+  if (useDb) {
+    const upd = {};
+    if (data.name !== undefined) upd.name = data.name;
+    if (data.description !== undefined) upd.description = data.description;
+    if (data.price !== undefined) upd.price = Number(data.price) || 0;
+    if (data.active !== undefined) upd.active = !!data.active;
+    if (data.customTag !== undefined) upd.customTag = !!data.customTag;
+    if (data.sourceFile) {
+      const sma = bufferFromPath(data.sourceFile);
+      upd.smaData = sma.buf;
+      upd.smaName = sma.name;
+    }
+    if (data.amxxFile) {
+      const amxx = bufferFromPath(data.amxxFile);
+      upd.amxxData = amxx.buf;
+      upd.amxxName = amxx.name;
+    }
+    const saved = await db.updatePlugin(id, upd);
+    cleanupTempFiles(data.sourceFile, data.amxxFile);
+    return materializePlugin(saved);
+  }
+
+  const plugins = readJSON(PLUGINS_FILE, []);
   const idx = plugins.findIndex(p => p.id === id);
   if (idx === -1) return null;
   plugins[idx] = { ...plugins[idx], ...data, id };
-  savePlugins(plugins);
+  writeJSON(PLUGINS_FILE, plugins);
   return plugins[idx];
 }
 
-function deletePlugin(id) {
-  savePlugins(getPlugins().filter(p => p.id !== id));
+async function deletePlugin(id) {
+  if (useDb) {
+    await db.deletePlugin(id);
+    removeFile(path.join(SOURCES_DIR, `${id}.sma`));
+    removeFile(path.join(SOURCES_DIR, `${id}.amxx`));
+    return;
+  }
+  const plugins = readJSON(PLUGINS_FILE, []);
+  writeJSON(PLUGINS_FILE, plugins.filter(p => p.id !== id));
 }
 
 // ===== Pedidos =====
-function getOrders() {
+async function getOrders() {
+  if (useDb) return (await db.getOrders()) || [];
   return readJSON(ORDERS_FILE, []);
 }
 
-function saveOrders(orders) {
-  writeJSON(ORDERS_FILE, orders);
+async function getOrderById(id) {
+  if (useDb) return await db.getOrderById(id);
+  return (await getOrders()).find(o => o.id === id);
 }
 
-function getOrderById(id) {
-  return getOrders().find(o => o.id === id);
+async function getOrderByPreferenceId(prefId) {
+  if (useDb) return await db.getOrderByPreferenceId(prefId);
+  return (await getOrders()).find(o => o.preferenceId === prefId);
 }
 
-function getOrderByPreferenceId(prefId) {
-  return getOrders().find(o => o.preferenceId === prefId);
+async function getOrderByPaymentId(paymentId) {
+  if (useDb) return await db.getOrderByPaymentId(paymentId);
+  return (await getOrders()).find(o => o.paymentId === String(paymentId));
 }
 
-function getOrderByPaymentId(paymentId) {
-  return getOrders().find(o => o.paymentId === String(paymentId));
-}
+async function createOrder({ plugin, buyer, customTag, price, preferenceId }) {
+  if (useDb) {
+    return await db.createOrder({
+      id: uuidv4(),
+      pluginId: plugin.id,
+      pluginName: plugin.name,
+      buyerName: (buyer && buyer.name) || '',
+      buyerEmail: (buyer && buyer.email) || undefined,
+      customTag: customTag || '',
+      price,
+      preferenceId,
+      createdAt: new Date().toISOString()
+    });
+  }
 
-function createOrder({ plugin, buyer, customTag, price, preferenceId }) {
   const order = {
     id: uuidv4(),
     pluginId: plugin.id,
@@ -119,32 +253,44 @@ function createOrder({ plugin, buyer, customTag, price, preferenceId }) {
     downloadUrl: null,
     createdAt: new Date().toISOString()
   };
-  const orders = getOrders();
+  const orders = readJSON(ORDERS_FILE, []);
   orders.push(order);
-  saveOrders(orders);
+  writeJSON(ORDERS_FILE, orders);
   return order;
 }
 
-function updateOrder(id, data) {
-  const orders = getOrders();
+async function updateOrder(id, data) {
+  if (useDb) return await db.updateOrder(id, data);
+  const orders = readJSON(ORDERS_FILE, []);
   const idx = orders.findIndex(o => o.id === id);
   if (idx === -1) return null;
-  orders[idx] = { ...orders[idx], ...data, id };
-  saveOrders(orders);
+  // No modo JSON os arquivos ficam no disco; não guarda os bytes aqui.
+  const { deliveryData, deliveryName, adminSmaData, adminSmaName, ...rest } = data;
+  orders[idx] = { ...orders[idx], ...rest, id };
+  writeJSON(ORDERS_FILE, orders);
   return orders[idx];
 }
 
 // ===== Sugestões =====
-function getSuggestions() {
+async function getSuggestions() {
+  if (useDb) {
+    await db.purgeExpiredSuggestions();
+    return (await db.getSuggestions()) || [];
+  }
   purgeExpiredSuggestions();
   return readJSON(SUGGESTIONS_FILE, []);
 }
 
-function saveSuggestions(list) {
-  writeJSON(SUGGESTIONS_FILE, list);
-}
+async function addSuggestion({ text, author }) {
+  if (useDb) {
+    return await db.addSuggestion({
+      id: uuidv4(),
+      text: String(text || '').trim().slice(0, 2000),
+      author: String(author || 'Anônimo').trim().slice(0, 60),
+      createdAt: new Date().toISOString()
+    });
+  }
 
-function addSuggestion({ text, author }) {
   const list = readJSON(SUGGESTIONS_FILE, []);
   const s = {
     id: uuidv4(),
@@ -154,28 +300,30 @@ function addSuggestion({ text, author }) {
     createdAt: new Date().toISOString()
   };
   list.push(s);
-  saveSuggestions(list);
+  writeJSON(SUGGESTIONS_FILE, list);
   return s;
 }
 
-function markSuggestionRead(id) {
+async function markSuggestionRead(id) {
+  if (useDb) return await db.markSuggestionRead(id);
   const list = readJSON(SUGGESTIONS_FILE, []);
   const s = list.find(x => x.id === id);
   if (s) {
     s.read = true;
     s.readAt = new Date().toISOString();
-    saveSuggestions(list);
+    writeJSON(SUGGESTIONS_FILE, list);
   }
   return s;
 }
 
-function deleteSuggestion(id) {
-  saveSuggestions(readJSON(SUGGESTIONS_FILE, []).filter(x => x.id !== id));
+async function deleteSuggestion(id) {
+  if (useDb) return await db.deleteSuggestion(id);
+  writeJSON(SUGGESTIONS_FILE, readJSON(SUGGESTIONS_FILE, []).filter(x => x.id !== id));
 }
 
 // Remove sugestões NÃO LIDAS com mais de 24h (expiração automática).
-// As lidas ficam guardadas até serem excluídas pelo admin.
-function purgeExpiredSuggestions() {
+async function purgeExpiredSuggestions() {
+  if (useDb) return await db.purgeExpiredSuggestions();
   const list = readJSON(SUGGESTIONS_FILE, []);
   const now = Date.now();
   const kept = list.filter(s => {
@@ -191,9 +339,9 @@ function purgeExpiredSuggestions() {
 
 module.exports = {
   initData,
-  getPlugins, savePlugins, getPublicPlugins, getPluginById,
+  getPlugins, getPublicPlugins, getPluginById,
   addPlugin, updatePlugin, deletePlugin,
-  getOrders, saveOrders, getOrderById,
+  getOrders, getOrderById,
   getOrderByPreferenceId, getOrderByPaymentId,
   createOrder, updateOrder,
   getSuggestions, addSuggestion, markSuggestionRead, deleteSuggestion, purgeExpiredSuggestions,
