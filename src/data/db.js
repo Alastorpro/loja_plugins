@@ -7,7 +7,23 @@ let initialized = false;
 function getConfig() {
   const url = process.env.DATABASE_URL;
   if (!url) return null;
-  return { connectionString: url };
+  return { connectionString: cleanUrl(url) };
+}
+
+// Remove parametros de SSL/autenticacao que o node-postgres interpreta de forma
+// confusa (sslmode -> gera aviso de seguranca; channel_binding nao e usado por nos).
+// O SSL ja e garantido via DATABASE_SSL (default true).
+function cleanUrl(url) {
+  try {
+    const u = new URL(url);
+    u.searchParams.delete('sslmode');
+    u.searchParams.delete('channel_binding');
+    if (u.searchParams.toString()) u.search = u.searchParams.toString();
+    else u.search = '';
+    return u.toString();
+  } catch (e) {
+    return url;
+  }
 }
 
 // Retorna o pool do Postgres (null quando DATABASE_URL não está definida).
