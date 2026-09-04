@@ -25,6 +25,15 @@ async function initData() {
     if (!fs.existsSync(PLUGINS_FILE)) writeJSON(PLUGINS_FILE, []);
     if (!fs.existsSync(ORDERS_FILE)) writeJSON(ORDERS_FILE, []);
     console.log('[DB] Armazenamento via arquivos JSON (.data/).');
+    // Em produção isso significa perda de dados a cada deploy: avisa com destaque.
+    if (process.env.NODE_ENV === 'production') {
+      console.error('==========================================================');
+      console.error('ATENÇÃO: produção SEM PostgreSQL (DATABASE_URL vazia).');
+      console.error('Plugins/pedidos ficam em arquivos efêmeros e SOMEM a cada deploy.');
+      console.error('Configure DATABASE_URL (+ DATABASE_SSL=true) no Render:');
+      console.error('Dashboard -> Web Service -> Environment -> Add Variable.');
+      console.error('==========================================================');
+    }
   }
 }
 
