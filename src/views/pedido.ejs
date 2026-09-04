@@ -1,4 +1,10 @@
-<%- include('partials/head', { title: 'Meu pedido', page: 'pedido' }) %>
+<%- include('partials/head', {
+  title: 'Meu pedido',
+  page: 'pedido',
+  headExtra: order.downloadUrl
+    ? `<meta http-equiv="refresh" content="3;url=${order.downloadUrl}">`
+    : ''
+}) %>
 <main class="container page narrow">
   <section class="card">
     <h1>Status do pedido</h1>
@@ -24,7 +30,7 @@
 
     <% if (order.downloadUrl) { %>
       <div class="alert success">
-        <p>Seu plugin está pronto para download!</p>
+        <p>Seu plugin está pronto para download! Iniciando o download automaticamente...</p>
         <a href="<%= order.downloadUrl %>" class="btn-primary">Baixar plugin (.amxx)</a>
       </div>
     <% } else if (order.status === 'needs_compile') { %>
