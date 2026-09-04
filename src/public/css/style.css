@@ -46,6 +46,13 @@ body {
 .nav-actions { display: flex; align-items: center; }
 .nav-actions .nav-link:first-child { margin-left: 0; }
 
+/* Botões Discord / WhatsApp */
+.btn-contact { text-decoration: none; color: #fff; font-weight: 600; font-size: 13px; padding: 6px 14px; border-radius: 6px; margin-left: 10px; transition: filter .15s, transform .1s; display: inline-block; }
+.btn-contact:hover { filter: brightness(1.12); }
+.btn-discord { background: #5865F2; box-shadow: 0 2px 10px rgba(88, 101, 242, .4); }
+.btn-whatsapp { background: #25D366; box-shadow: 0 2px 10px rgba(37, 211, 102, .35); color: #0b141a; }
+@media (max-width: 640px) { .btn-contact { font-size: 12px; padding: 5px 10px; margin-left: 6px; } }
+
 /* Hero */
 .hero { text-align: center; padding: 40px 0 30px; }
 .hero .hero-nick { font-size: 17px; letter-spacing: 2px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }

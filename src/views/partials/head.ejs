@@ -18,4 +18,12 @@
       <a href="/compilador" class="nav-link">Compilador</a>
       <a href="/sugestao" class="nav-link">Sugestão</a>
     </div>
+    <div class="nav-actions">
+      <% if (typeof contact !== 'undefined' && contact && contact.discord) { %>
+        <a href="<%= contact.discord %>" target="_blank" rel="noopener" class="btn-contact btn-discord">Discord</a>
+      <% } %>
+      <% if (typeof contact !== 'undefined' && contact && contact.whatsapp) { %>
+        <a href="<%= contact.whatsapp %>" target="_blank" rel="noopener" class="btn-contact btn-whatsapp">WhatsApp</a>
+      <% } %>
+    </div>
   </nav>

@@ -24,6 +24,13 @@ app.locals.app = {
   url: process.env.APP_URL || 'http://localhost:3000'
 };
 
+app.locals.contact = {
+  discord: process.env.DISCORD_INVITE_URL || 'https://discord.gg/hcRAPWBrh9',
+  whatsapp: process.env.WHATSAPP_NUMBER
+    ? 'https://wa.me/' + process.env.WHATSAPP_NUMBER + '?text=' + encodeURIComponent('Olá! Vim pelo site da loja de plugins de CS 1.6.')
+    : null
+};
+
 // ===== Inicialização =====
 // (Tudo de middleware/rotas é registrado aqui, DEPOIS do banco e das sessões estarem prontos)
 async function start() {
