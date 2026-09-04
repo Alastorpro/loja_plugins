@@ -10,6 +10,11 @@ function getConfig() {
   return { connectionString: url };
 }
 
+// Retorna o pool do Postgres (null quando DATABASE_URL não está definida).
+function getPool() {
+  return pool;
+}
+
 function isEnabled() {
   return !!getConfig();
 }
@@ -350,7 +355,7 @@ function rowToSuggestion(row) {
 }
 
 module.exports = {
-  isEnabled, initDb, getConfig,
+  isEnabled, initDb, getConfig, getPool,
   getPlugins, getPluginById, addPlugin, updatePlugin, deletePlugin,
   getOrders, getOrderById, getOrderByPreferenceId, getOrderByPaymentId,
   createOrder, updateOrder,
