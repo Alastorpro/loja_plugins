@@ -155,10 +155,13 @@ router.post('/sugestao', async (req, res) => {
       error: 'Escreva sua sugestão primeiro.'
     });
   }
-  const { addSuggestion } = require('../data/store');
-  const s = await addSuggestion({ text: texto, author: nome });
   const { notifySuggestion } = require('../services/discord');
-  notifySuggestion(s);
+  const sent = await notifySuggestion({ text: texto, author: nome });
+  // Sem webhook (nem geral nem de sugestões): armazena no site pra não perder a mensagem.
+  if (!sent) {
+    const { addSuggestion } = require('../data/store');
+    await addSuggestion({ text: texto, author: nome }).catch(() => {});
+  }
   res.render('sugestao', {
     success: 'Sugestão enviada! Obrigado por ajudar a melhorar a loja.',
     error: null

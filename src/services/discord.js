@@ -1,15 +1,16 @@
 const WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+const SUGGESTION_WEBHOOK_URL = process.env.SUGGESTION_WEBHOOK_URL;
 
 /**
  * Envia uma mensagem para um canal do Discord via webhook.
- * Desativado se DISCORD_WEBHOOK_URL não estiver definido.
+ * Desativado se o webhook não estiver definido.
  *
  * Use https://discord.com/api/webhooks/ID/TOKEN
  */
-async function sendDiscord(payload) {
-  if (!WEBHOOK_URL) return false;
+async function sendDiscord(payload, webhookUrl = WEBHOOK_URL) {
+  if (!webhookUrl) return false;
   try {
-    const res = await fetch(WEBHOOK_URL, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -55,18 +56,21 @@ async function notifyOrder(order, extra = {}) {
   });
 }
 
-/** Notifica nova sugestão */
+/** Notifica nova sugestão — usa o webhook SEPARADO de sugestões
+ *  (SUGGESTION_WEBHOOK_URL). Sem ele, cai no webhook geral de vendas. */
 async function notifySuggestion(s) {
-  await sendDiscord({
+  const webhook = SUGGESTION_WEBHOOK_URL || WEBHOOK_URL;
+  const sent = await sendDiscord({
     embeds: [{
       title: '💡 Nova sugestão',
       color: embedColor('pending'),
       description: `> ${s.text}`,
       fields: [{ name: 'Autor', value: s.author || 'Anônimo', inline: true }],
-      footer: { text: 'Essa sugestão some em 24h se não for lida' },
       timestamp: new Date().toISOString()
     }]
   });
+  if (!sent) console.error('[Discord] Sem webhook configurado: sugestão não pôde ser notificada.');
+  return sent;
 }
 
 /** Notifica novo pedido iniciado (checkout) */
