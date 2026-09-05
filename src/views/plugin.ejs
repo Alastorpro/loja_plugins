@@ -5,6 +5,12 @@
   <section class="card product-detail">
     <h1><%= plugin.name %></h1>
     <p class="desc"><%= plugin.description %></p>
+    <% if (plugin.details) { %>
+      <details class="card-details">
+        <summary class="btn-secondary">Ler detalhes</summary>
+        <div class="desc details-text"><%= plugin.details %></div>
+      </details>
+    <% } %>
     <p class="price big">R$ <%= plugin.price.toFixed(2) %></p>
 
     <% if (plugin.customTag !== false && !plugin.amxxFile) { %>

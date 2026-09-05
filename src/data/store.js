@@ -153,6 +153,7 @@ async function addPlugin(data) {
       id: uuidv4(),
       name: data.name,
       description: data.description || '',
+      details: data.details || '',
       price: Number(data.price) || 0,
       active: data.active !== false,
       customTag: data.customTag !== false,
@@ -174,6 +175,7 @@ async function addPlugin(data) {
     id: uuidv4(),
     name: data.name,
     description: data.description || '',
+    details: data.details || '',
     price: Number(data.price),
     active: data.active !== false,
     customTag: data.customTag !== false,
@@ -193,6 +195,7 @@ async function updatePlugin(id, data) {
     const upd = {};
     if (data.name !== undefined) upd.name = data.name;
     if (data.description !== undefined) upd.description = data.description;
+    if (data.details !== undefined) upd.details = data.details;
     if (data.price !== undefined) upd.price = Number(data.price) || 0;
     if (data.active !== undefined) upd.active = !!data.active;
     if (data.customTag !== undefined) upd.customTag = !!data.customTag;

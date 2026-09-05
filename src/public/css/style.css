@@ -197,3 +197,6 @@ body {
   color: var(--muted); font-size: 13px;
   border-top: 1px solid var(--border);
 }
+.card-details { margin-top: 4px; }
+.card-details summary { cursor: pointer; font-size: 13px; padding: 7px 14px; border-radius: 6px; width: fit-content; }
+.details-text { white-space: pre-line; padding-top: 10px; border-top: 1px solid var(--border); margin-top: 8px; }

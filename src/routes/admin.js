@@ -119,6 +119,7 @@ router.post('/plugins', requireAuth, (req, res) => {
       await store.addPlugin({
         name,
         description,
+        details: (req.body.details || '').trim(),
         price,
         customTag: usesCustomTag,
         downloadName: (req.body.downloadName || '').trim(),
@@ -138,10 +139,11 @@ router.post('/plugins', requireAuth, (req, res) => {
 router.post('/plugins/:id/edit', requireAuth, async (req, res) => {
   const p = await store.getPluginById(req.params.id);
   if (!p) return res.redirect('/admin#plugins');
-  const { name, description, price } = req.body;
+  const { name, description, details, price } = req.body;
   await store.updatePlugin(p.id, {
     name: name || p.name,
     description: description !== undefined ? description : p.description,
+    details: details !== undefined ? details : p.details,
     price: price !== '' ? Number(price) : p.price
   });
   res.redirect('/admin#plugins');

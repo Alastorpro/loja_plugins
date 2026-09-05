@@ -25,6 +25,12 @@
         <% } else if (p.customTag !== false) { %>
           <p class="badge cpu">Tag customizada</p>
         <% } %>
+        <% if (p.details) { %>
+          <details class="card-details">
+            <summary class="btn-secondary">Ler detalhes</summary>
+            <div class="desc details-text"><%= p.details %></div>
+          </details>
+        <% } %>
         <a href="/plugin/<%= p.id %>" class="btn-primary">Comprar</a>
       </div>
     <% }) %>
