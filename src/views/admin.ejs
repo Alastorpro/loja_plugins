@@ -25,9 +25,7 @@
           <strong><%= s.author %></strong>
           <div>
             <span class="status <%= s.read ? 'status-delivered' : 'status-pending' %>"><%= s.read ? 'LIDA' : 'NÃO LIDA' %></span>
-            <% if (!s.read) { %>
-              <span class="muted small">expira em ~<%= restante %>h</span>
-            <% } %>
+            <span class="muted small">expira em ~<%= restante %>h</span>
           </div>
         </div>
         <p class="sugestao-text"><%= s.text %></p>

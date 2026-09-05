@@ -362,10 +362,7 @@ async function purgeExpiredSuggestions() {
   if (useDb) return await db.purgeExpiredSuggestions();
   const list = readJSON(SUGGESTIONS_FILE, []);
   const now = Date.now();
-  const kept = list.filter(s => {
-    if (s.read) return true; // lida = fica
-    return now - new Date(s.createdAt).getTime() < SUGGESTION_TTL;
-  });
+  const kept = list.filter(s => now - new Date(s.createdAt).getTime() < SUGGESTION_TTL);
   if (kept.length !== list.length) {
     writeJSON(SUGGESTIONS_FILE, kept);
     return true;

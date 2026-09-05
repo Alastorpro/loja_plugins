@@ -381,7 +381,7 @@ async function purgeExpiredSuggestions() {
   const ttl = 24 * 60 * 60 * 1000;
   const cutoff = new Date(Date.now() - ttl).toISOString();
   const { rowCount } = await pool.query(
-    `DELETE FROM suggestions WHERE read=false AND created_at < $1`, [cutoff]
+    `DELETE FROM suggestions WHERE created_at < $1`, [cutoff]
   );
   return rowCount > 0;
 }
