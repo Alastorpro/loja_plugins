@@ -157,49 +157,14 @@
                 </form>
               <% } %>
               <form action="/admin/orders/<%= o.id %>/delete" method="POST" style="display:inline"
-                    onsubmit="return confirm('Arquivar este pedido? O cliente já pago continua com o download.')">
-                <button class="btn-mini" title="Arquivar (cliente mantém o download)">Arquivar</button>
+                    onsubmit="return confirm('Excluir o pedido de <%= o.pluginId %>?')">
+                <button class="btn-mini danger">Excluir</button>
               </form>
             </td>
           </tr>
         <% }) %>
       </tbody>
     </table>
-  </section>
-
-  <!-- ====== PEDIDOS ARQUIVADOS ====== -->
-  <section class="card" id="archived">
-    <h2>Pedidos arquivados (<%= archivedOrders.length %>)</h2>
-    <p class="muted small">Arquivados não aparecem na lista acima, mas o cliente já pago continua baixando. Restaure se precisar.</p>
-    <% if (archivedOrders.length === 0) { %>
-      <p class="muted">Nenhum pedido arquivado.</p>
-    <% } else { %>
-      <table class="table">
-        <thead>
-          <tr><th>ID</th><th>Plug-in</th><th>Valor</th><th>Status</th><th></th></tr>
-        </thead>
-        <tbody>
-          <% archivedOrders.forEach(o => { %>
-            <tr>
-              <td class="mono"><%= o.id.slice(0,8) %></td>
-              <td><%= o.pluginName %></td>
-              <td>R$ <%= Number(o.price).toFixed(2) %></td>
-              <td><span class="status status-<%= o.status %>"><%= o.status %></span></td>
-              <td class="actions">
-                <a href="/admin/orders/<%= o.id %>" class="btn-mini">Ver</a>
-                <form action="/admin/orders/<%= o.id %>/restore" method="POST" style="display:inline">
-                  <button class="btn-mini">Restaurar</button>
-                </form>
-                <form action="/admin/orders/<%= o.id %>/purge" method="POST" style="display:inline"
-                      onsubmit="return confirm('Excluir DEFINITIVAMENTE este pedido? O cliente perderá o acesso.')">
-                  <button class="btn-mini danger">Excluir definit.</button>
-                </form>
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    <% } %>
   </section>
 </main>
 <%- include('partials/tail') %>
