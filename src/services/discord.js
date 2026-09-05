@@ -16,7 +16,8 @@ async function sendDiscord(payload, webhookUrl = WEBHOOK_URL) {
       body: JSON.stringify(payload)
     });
     if (!res.ok) {
-      console.error('[Discord] Falha ao enviar webhook:', res.status, await res.text().catch(() => ''));
+      const txt = await res.text().catch(() => '');
+      console.error(`[Discord] Falha ao enviar webhook: ${res.status} ${txt.replace(/\s+/g, ' ').slice(0, 200)}`);
       return false;
     }
     return true;
@@ -60,6 +61,10 @@ async function notifyOrder(order, extra = {}) {
  *  (SUGGESTION_WEBHOOK_URL). Sem ele, cai no webhook geral de vendas. */
 async function notifySuggestion(s) {
   const webhook = SUGGESTION_WEBHOOK_URL || WEBHOOK_URL;
+  if (!webhook) {
+    console.error('[Discord] Nem SUGGESTION_WEBHOOK_URL nem DISCORD_WEBHOOK_URL configurados.');
+    return false;
+  }
   const sent = await sendDiscord({
     embeds: [{
       title: '💡 Nova sugestão',
@@ -68,8 +73,8 @@ async function notifySuggestion(s) {
       fields: [{ name: 'Autor', value: s.author || 'Anônimo', inline: true }],
       timestamp: new Date().toISOString()
     }]
-  });
-  if (!sent) console.error('[Discord] Sem webhook configurado: sugestão não pôde ser notificada.');
+  }, webhook);
+  if (!sent) console.error(`[Discord] Webhook de sugestões falhou (${SUGGESTION_WEBHOOK_URL ? 'separado' : 'geral'}).`);
   return sent;
 }
 
