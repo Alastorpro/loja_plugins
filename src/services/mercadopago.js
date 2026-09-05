@@ -20,7 +20,7 @@ function initMercadoPago() {
  * Cria uma preference de pagamento no Mercado Pago.
  * Retorna { init_point, id } para o front-end.
  */
-async function createPreference({ order, plugin, customTag, buyerEmail }) {
+async function createPreference({ order, plugin, customTag }) {
   if (!configured || !client) {
     throw new Error('Mercado Pago não configurado. Defina MP_ACCESS_TOKEN no .env');
   }
@@ -34,7 +34,7 @@ async function createPreference({ order, plugin, customTag, buyerEmail }) {
       currency_id: 'BRL',
       unit_price: plugin.price
     }],
-    payer: { email: buyerEmail },
+    payer: {},
     back_urls: {
       success: `${process.env.APP_URL}/checkout/obrigado?order_id=${order.id}`,
       pending: `${process.env.APP_URL}/checkout/pendente?order_id=${order.id}`,

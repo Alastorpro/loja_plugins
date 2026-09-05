@@ -123,14 +123,14 @@
     <h2>Pedidos (<%= orders.length %>)</h2>
     <table class="table">
       <thead>
-        <tr><th>ID</th><th>Plug-in</th><th>E-mail</th><th>Tag</th><th>Valor</th><th>Status</th><th></th></tr>
+        <tr><th>ID</th><th>Plug-in</th><th>Cliente</th><th>Tag</th><th>Valor</th><th>Status</th><th></th></tr>
       </thead>
       <tbody>
         <% orders.forEach(o => { %>
           <tr>
             <td class="mono"><%= o.id.slice(0,8) %></td>
             <td><%= o.pluginName %></td>
-            <td><%= o.buyerEmail %></td>
+            <td><%= o.buyerName || o.buyerEmail || '-' %></td>
             <td><%= o.customTag || '-' %></td>
             <td>R$ <%= Number(o.price).toFixed(2) %></td>
             <td>

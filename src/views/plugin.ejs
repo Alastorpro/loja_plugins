@@ -25,8 +25,8 @@
       <input type="hidden" name="pluginId" value="<%= plugin.id %>">
 
       <label>
-        Seu e-mail (para receber o download)
-        <input type="email" name="email" required placeholder="exemplo@email.com">
+        Seu nome ou nick (para receber o download)
+        <input type="text" name="nome" required minlength="3" maxlength="60" placeholder="Ex: Alastor">
       </label>
 
       <% if (plugin.customTag !== false && !plugin.amxxFile) { %>

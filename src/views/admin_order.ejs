@@ -7,8 +7,7 @@
 
     <table class="kv">
       <tr><td>Plugin</td><td><%= order.pluginName %></td></tr>
-      <tr><td>Comprador</td><td><%= order.buyerName || '-' %></td></tr>
-      <tr><td>E-mail</td><td><%= order.buyerEmail %></td></tr>
+      <tr><td>Comprador</td><td><%= order.buyerName || order.buyerEmail || '-' %></td></tr>
       <tr><td>Tag customizada</td><td><%= order.customTag || '-' %></td></tr>
       <tr><td>Valor</td><td>R$ <%= Number(order.price).toFixed(2) %></td></tr>
       <tr><td>Status</td><td><span class="status status-<%= order.status %>"><%= order.status %></span></td></tr>

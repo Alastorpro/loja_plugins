@@ -5,16 +5,17 @@ const { createPreference } = require('../services/mercadopago');
 
 // POST /checkout/create - cria o pedido e redireciona pro Mercado Pago
 router.post('/create', async (req, res) => {
-  const { pluginId, email, tag } = req.body;
+  const { pluginId, nome, tag } = req.body;
 
   const plugin = await getPluginById(pluginId);
   if (!plugin || plugin.active === false) {
     return res.status(404).render('404');
   }
 
-  // Valida o email
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.render('plugin', { plugin, error: 'E-mail inválido. Informe um e-mail válido.' });
+  // Valida o nome/nick
+  const nick = String(nome || '').trim();
+  if (!nick || nick.length < 3 || nick.length > 60) {
+    return res.render('plugin', { plugin, error: 'Informe seu nome ou nick (3 a 60 caracteres).' });
   }
 
   // Se o plugin permite tag customizada mas a tag está vazia, obriga
@@ -28,7 +29,7 @@ router.post('/create', async (req, res) => {
   }
 
   // Idempotência por sessão para evitar pedidos duplicados
-  const sessionKey = `order_${pluginId}_${email}_${tag || ''}`;
+  const sessionKey = `order_${pluginId}_${nick}_${tag || ''}`;
   if (req.session[sessionKey]) {
     return res.redirect(`/pedido/${req.session[sessionKey]}`);
   }
@@ -36,7 +37,7 @@ router.post('/create', async (req, res) => {
   try {
     const order = await createOrder({
       plugin,
-      buyer: { email },
+      buyer: { name: nick },
       customTag: tag || '',
       price: plugin.price,
       preferenceId: null
@@ -62,8 +63,7 @@ router.post('/create', async (req, res) => {
     // Cria a preference no Mercado Pago
     const pref = await createPreference({
       order, plugin,
-      customTag: tag || '',
-      buyerEmail: email
+      customTag: tag || ''
     });
 
     // Atualiza o pedido com o id da preference

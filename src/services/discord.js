@@ -59,7 +59,7 @@ async function notifyOrder(order, extra = {}) {
   const fields = [];
   if (order.customTag) fields.push({ name: 'Tag', value: order.customTag, inline: true });
   fields.push({ name: 'Valor', value: `R$ ${Number(order.price).toFixed(2)}`, inline: true });
-  if (order.buyerEmail) fields.push({ name: 'E-mail', value: order.buyerEmail, inline: true });
+  if (order.buyerName) fields.push({ name: 'Cliente', value: order.buyerName, inline: true });
 
   const title = extra.status === 'needs_compile'
     ? '⚠️ Pagamento aprovado — precisa compilar manualmente'
@@ -109,7 +109,7 @@ async function notifyCheckout(order) {
       color: embedColor('pending'),
       description: `**${order.pluginName}** \`#${order.id.slice(0, 8)}\``,
       fields: [
-        { name: 'E-mail', value: order.buyerEmail || '-', inline: true },
+        { name: 'Cliente', value: order.buyerName || order.buyerEmail || '-', inline: true },
         { name: 'Tag', value: order.customTag || '-', inline: true },
         { name: 'Valor', value: `R$ ${Number(order.price).toFixed(2)}`, inline: true }
       ],
