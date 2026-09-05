@@ -244,7 +244,22 @@ async function deletePlugin(id) {
 // ===== Pedidos =====
 async function getOrders() {
   if (useDb) return (await db.getOrders()) || [];
-  return readJSON(ORDERS_FILE, []);
+  return readJSON(ORDERS_FILE, []).filter(o => !o.archived);
+}
+
+async function getArchivedOrders() {
+  if (useDb) return (await db.getArchivedOrders()) || [];
+  return readJSON(ORDERS_FILE, []).filter(o => o.archived);
+}
+
+async function setOrderArchived(id, archived) {
+  if (useDb) return await db.setOrderArchived(id, archived);
+  const list = readJSON(ORDERS_FILE, []);
+  const idx = list.findIndex(o => o.id === id);
+  if (idx === -1) return null;
+  list[idx] = { ...list[idx], archived: !!archived };
+  writeJSON(ORDERS_FILE, list);
+  return list[idx];
 }
 
 async function getOrderById(id) {
@@ -290,6 +305,7 @@ async function createOrder({ plugin, buyer, customTag, price, preferenceId }) {
     status: 'pending',
     paymentStatus: 'pending',
     downloadUrl: null,
+    archived: false,
     createdAt: new Date().toISOString()
   };
   const orders = readJSON(ORDERS_FILE, []);
@@ -384,7 +400,7 @@ module.exports = {
   addPlugin, updatePlugin, deletePlugin,
   getOrders, getOrderById,
   getOrderByPreferenceId, getOrderByPaymentId,
-  createOrder, updateOrder, deleteOrder,
+  createOrder, updateOrder, deleteOrder, getArchivedOrders, setOrderArchived,
   getSuggestions, addSuggestion, markSuggestionRead, deleteSuggestion, purgeExpiredSuggestions,
   DATA_DIR
 };

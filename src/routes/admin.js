@@ -94,7 +94,8 @@ async function adminData(extra) {
   return Object.assign({
     plugins: await store.getPlugins(),
     orders: (await store.getOrders()).slice().reverse(),
-    suggestions: (await store.getSuggestions()).slice().reverse(),
+    suggestions: await store.getSuggestions().then(list => list.slice().reverse()),
+    archivedOrders: (await store.getArchivedOrders()).slice().reverse(),
     now: Date.now(),
     TTL: 24 * 60 * 60 * 1000
   }, extra || {});
@@ -244,8 +245,30 @@ router.get('/orders/:id', requireAuth, async (req, res) => {
   res.render('admin_order', { order });
 });
 
-// ===== Pedidos: excluir (remove também os arquivos de entrega) =====
+// ===== Pedidos: arquivar (some da lista, mas o cliente já pago continua baixando) =====
 router.post('/orders/:id/delete', requireAuth, async (req, res) => {
+  const order = await store.getOrderById(req.params.id);
+  if (order) {
+    await store.setOrderArchived(order.id, true)
+      .then(() => console.log(`[Admin] Pedido ${order.id} arquivado (cliente preserva o download).`))
+      .catch(e => console.error('[Admin] Falha ao arquivar pedido:', e.message));
+  }
+  res.redirect('/admin#orders');
+});
+
+// ===== Pedidos: restaurar (volta pra lista) =====
+router.post('/orders/:id/restore', requireAuth, async (req, res) => {
+  const order = await store.getOrderById(req.params.id);
+  if (order) {
+    await store.setOrderArchived(order.id, false)
+      .then(() => console.log(`[Admin] Pedido ${order.id} restaurado.`))
+      .catch(e => console.error('[Admin] Falha ao restaurar pedido:', e.message));
+  }
+  res.redirect('/admin#orders');
+});
+
+// ===== Pedidos: excluir DEFINITIVAMENTE (só para arquivados) =====
+router.post('/orders/:id/purge', requireAuth, async (req, res) => {
   const order = await store.getOrderById(req.params.id);
   if (order) {
     for (const p of [order.deliveryFile, order.adminSmaFile, order.pendingSma]) {
@@ -256,8 +279,8 @@ router.post('/orders/:id/delete', requireAuth, async (req, res) => {
       if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
     } catch (e) {}
     await store.deleteOrder(order.id)
-      .then(() => console.log(`[Admin] Pedido ${order.id} excluído.`))
-      .catch(e => console.error('[Admin] Falha ao excluir pedido:', e.message));
+      .then(() => console.log(`[Admin] Pedido ${order.id} excluído definitivamente.`))
+      .catch(e => console.error('[Admin] Falha ao excluir pedido definitivamente:', e.message));
   }
   res.redirect('/admin#orders');
 });

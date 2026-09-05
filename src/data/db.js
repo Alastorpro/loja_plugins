@@ -111,6 +111,7 @@ async function createTables() {
     await client.query(`ALTER TABLE plugins ADD COLUMN IF NOT EXISTS extra_files JSONB NOT NULL DEFAULT '[]'`);
     await client.query(`ALTER TABLE plugins ADD COLUMN IF NOT EXISTS download_name TEXT`);
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_extras JSONB NOT NULL DEFAULT '[]'`);
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false`);
   } finally {
     client.release();
   }
@@ -230,8 +231,20 @@ function rowToPlugin(row) {
 // ===== Pedidos =====
 async function getOrders() {
   if (!pool) return null;
-  const { rows } = await pool.query('SELECT * FROM orders ORDER BY created_at ASC');
+  const { rows } = await pool.query(`SELECT * FROM orders WHERE NOT archived ORDER BY created_at ASC`);
   return rows.map(rowToOrder);
+}
+
+async function getArchivedOrders() {
+  if (!pool) return null;
+  const { rows } = await pool.query(`SELECT * FROM orders WHERE archived ORDER BY created_at DESC`);
+  return rows.map(rowToOrder);
+}
+
+async function setOrderArchived(id, archived) {
+  if (!pool) return null;
+  const { rows } = await pool.query(`UPDATE orders SET archived=$2 WHERE id=$1 RETURNING *`, [id, !!archived]);
+  return rows.length ? rowToOrder(rows[0]) : null;
 }
 
 async function getOrderById(id) {
@@ -411,6 +424,6 @@ module.exports = {
   isEnabled, initDb, getConfig, getPool,
   getPlugins, getPluginById, addPlugin, updatePlugin, deletePlugin,
   getOrders, getOrderById, getOrderByPreferenceId, getOrderByPaymentId,
-  createOrder, updateOrder, deleteOrder,
+  createOrder, updateOrder, deleteOrder, getArchivedOrders, setOrderArchived,
   getSuggestions, addSuggestion, markSuggestionRead, deleteSuggestion, purgeExpiredSuggestions
 };
