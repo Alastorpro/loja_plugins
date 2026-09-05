@@ -166,11 +166,9 @@ router.post('/sugestao', async (req, res) => {
       error: 'Escreva sua sugestão primeiro.'
     });
   }
-  const { notifySuggestion } = require('../services/discord');
   const { addSuggestion } = require('../data/store');
-  // Sempre guarda no painel admin (expira em 24h) + tenta avisar no webhook.
+  // Sugestão fica no painel admin (expira em 24h). Sem envio pra Discord.
   await addSuggestion({ text: texto, author: nome }).catch(() => {});
-  const sent = await notifySuggestion({ text: texto, author: nome });
   res.render('sugestao', {
     success: 'Sugestão enviada! Obrigado por ajudar a melhorar a loja.',
     error: null
