@@ -7,24 +7,47 @@ const SUGGESTION_WEBHOOK_URL = process.env.SUGGESTION_WEBHOOK_URL;
  *
  * Use https://discord.com/api/webhooks/ID/TOKEN
  */
-async function sendDiscord(payload, webhookUrl = WEBHOOK_URL) {
+async function sendDiscord(payload, webhookUrl = WEBHOOK_URL, retries = 3) {
   if (!webhookUrl) return false;
-  try {
-    const res = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125.0 Safari/537.36'
+  };
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) return true;
+
       const txt = await res.text().catch(() => '');
+      if (res.status === 429 || res.status >= 500) {
+        // 429/5xx: espera e tenta de novo (rate limit que costuma liberar em segundos)
+        let wait = 2000 + (attempt - 1) * 3000;
+        try {
+          const j = JSON.parse(txt);
+          if (j.retry_after) wait = Math.round(j.retry_after * 1000);
+        } catch (e) { /* corpo HTML/Cloudflare: usa espera fixa */ }
+        wait = Math.min(wait, 10000);
+        console.error(`[Discord] tentativa ${attempt}/${retries} falhou (HTTP ${res.status}); retentando em ${Math.round(wait / 1000)}s`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+
       console.error(`[Discord] Falha ao enviar webhook: ${res.status} ${txt.replace(/\s+/g, ' ').slice(0, 200)}`);
       return false;
+    } catch (e) {
+      console.error(`[Discord] tentativa ${attempt}/${retries} erro de rede: ${e.message}`);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
+      }
+      return false;
     }
-    return true;
-  } catch (e) {
-    console.error('[Discord] Erro ao enviar webhook:', e.message);
-    return false;
   }
+  return false;
 }
 
 function embedColor(status) {
