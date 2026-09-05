@@ -152,6 +152,10 @@
                   <button class="btn-mini">Enviar .amxx</button>
                 </form>
               <% } %>
+              <form action="/admin/orders/<%= o.id %>/delete" method="POST" style="display:inline"
+                    onsubmit="return confirm('Excluir o pedido <%= o.pluginName %>?')">
+                <button class="btn-mini danger">Excluir</button>
+              </form>
             </td>
           </tr>
         <% }) %>

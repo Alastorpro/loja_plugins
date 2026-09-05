@@ -35,6 +35,35 @@ function requireAuth(req, res, next) {
   res.redirect('/admin/login');
 }
 
+// Renomeia os temporários do multer (que são salvos com UUID) para o nome ORIGINAL
+// do upload. Assim o arquivo entregue ao cliente mantém o nome certo
+// (ex.: mutar_microfone.amxx em vez de d192c539-...-amxx).
+function keepOriginalNames(files) {
+  const renameds = [];
+  for (const f of (files || [])) {
+    const baseRaw = (f.originalname || f.filename || 'arquivo')
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const base = baseRaw || 'arquivo';
+    const dir = path.dirname(f.path);
+    let final = path.join(dir, base);
+    let n = 1;
+    const ext = path.extname(base);
+    while (fs.existsSync(final) && final !== f.path) {
+      final = path.join(dir, `${path.basename(base, ext)}_${n}${ext}`);
+      n++;
+    }
+    try {
+      fs.renameSync(f.path, final);
+      renameds.push(final);
+    } catch (e) {
+      renameds.push(f.path);
+    }
+  }
+  return renameds;
+}
+
 // ===== Login =====
 router.get('/login', (req, res) => {
   if (req.session.isAdmin) return res.redirect('/admin');
@@ -83,17 +112,18 @@ router.post('/plugins', requireAuth, (req, res) => {
       return res.render('admin', await adminData({ error: 'Nome e preço são obrigatórios.' }));
     }
     const files = req.files || {};
-    const sma = files['sma'] && files['sma'][0];
-    const amxx = files['amxx'] && files['amxx'][0];
+    const sma = (files['sma'] && keepOriginalNames(files['sma'])[0]) || null;
+    const amxx = (files['amxx'] && keepOriginalNames(files['amxx'])[0]) || null;
+    const extrasPaths = keepOriginalNames(files['extras'] || []);
     try {
       await store.addPlugin({
         name,
         description,
         price,
         customTag: usesCustomTag,
-        sourceFile: sma ? sma.path : null,
-        amxxFile: amxx ? amxx.path : null,
-        extraFiles: (files['extras'] || []).map(f => f.path)
+        sourceFile: sma,
+        amxxFile: amxx,
+        extraFiles: extrasPaths
       });
     } catch (e) {
       console.error('[Admin] Falha ao salvar plugin:', e.message);
@@ -211,6 +241,24 @@ router.get('/orders/:id', requireAuth, async (req, res) => {
   const order = await store.getOrderById(req.params.id);
   if (!order) return res.status(404).render('404');
   res.render('admin_order', { order });
+});
+
+// ===== Pedidos: excluir (remove também os arquivos de entrega) =====
+router.post('/orders/:id/delete', requireAuth, async (req, res) => {
+  const order = await store.getOrderById(req.params.id);
+  if (order) {
+    for (const p of [order.deliveryFile, order.adminSmaFile, order.pendingSma]) {
+      try { if (p && fs.existsSync(p) && !fs.statSync(p).isDirectory()) fs.unlinkSync(p); } catch (e) {}
+    }
+    try {
+      const dir = path.join(store.DATA_DIR, 'deliver', order.id);
+      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+    } catch (e) {}
+    await store.deleteOrder(order.id)
+      .then(() => console.log(`[Admin] Pedido ${order.id} excluído.`))
+      .catch(e => console.error('[Admin] Falha ao excluir pedido:', e.message));
+  }
+  res.redirect('/admin#orders');
 });
 
 // ===== Pedidos: baixar o .sma personalizado (conferir a tag) =====

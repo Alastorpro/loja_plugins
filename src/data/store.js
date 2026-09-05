@@ -307,6 +307,11 @@ async function updateOrder(id, data) {
   return orders[idx];
 }
 
+async function deleteOrder(id) {
+  if (useDb) return await db.deleteOrder(id);
+  writeJSON(ORDERS_FILE, readJSON(ORDERS_FILE, []).filter(o => o.id !== id));
+}
+
 // ===== Sugestões =====
 async function getSuggestions() {
   if (useDb) {
@@ -376,7 +381,7 @@ module.exports = {
   addPlugin, updatePlugin, deletePlugin,
   getOrders, getOrderById,
   getOrderByPreferenceId, getOrderByPaymentId,
-  createOrder, updateOrder,
+  createOrder, updateOrder, deleteOrder,
   getSuggestions, addSuggestion, markSuggestionRead, deleteSuggestion, purgeExpiredSuggestions,
   DATA_DIR
 };

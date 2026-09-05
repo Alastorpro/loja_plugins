@@ -344,6 +344,11 @@ function rowToOrder(row) {
   };
 }
 
+async function deleteOrder(id) {
+  if (!pool) return null;
+  await pool.query('DELETE FROM orders WHERE id=$1', [id]);
+}
+
 // ===== Sugestões =====
 async function getSuggestions() {
   if (!pool) return null;
@@ -401,6 +406,6 @@ module.exports = {
   isEnabled, initDb, getConfig, getPool,
   getPlugins, getPluginById, addPlugin, updatePlugin, deletePlugin,
   getOrders, getOrderById, getOrderByPreferenceId, getOrderByPaymentId,
-  createOrder, updateOrder,
+  createOrder, updateOrder, deleteOrder,
   getSuggestions, addSuggestion, markSuggestionRead, deleteSuggestion, purgeExpiredSuggestions
 };
