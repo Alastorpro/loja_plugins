@@ -61,7 +61,7 @@ async function processApprovedPayment(payment) {
   if (plugin.amxxFile && fs.existsSync(plugin.amxxFile)) {
     const finalDir = path.join(DELIVER_DIR, order.id);
     fs.mkdirSync(finalDir, { recursive: true });
-    const baseName = (plugin.name || 'plugin').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const baseName = ((plugin.downloadName || plugin.name) || 'plugin').replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '') || 'plugin';
     const finalPath = path.join(finalDir, `${baseName}.amxx`);
     fs.copyFileSync(plugin.amxxFile, finalPath);
 
@@ -99,7 +99,8 @@ async function processApprovedPayment(payment) {
       // Arquivo entregue fica dentro de um diretório com nome = id do pedido
       const finalDir = path.join(DELIVER_DIR, order.id);
       fs.mkdirSync(finalDir, { recursive: true });
-      const finalPath = path.join(finalDir, path.basename(fileInfo.path));
+      const finalBase = ((plugin.downloadName || plugin.name) || 'plugin').replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '') || 'plugin';
+      const finalPath = path.join(finalDir, `${finalBase}.amxx`);
       fs.copyFileSync(fileInfo.path, finalPath);
       const deliveryExtras = copyExtras(plugin, finalDir);
 

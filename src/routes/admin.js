@@ -121,6 +121,7 @@ router.post('/plugins', requireAuth, (req, res) => {
         description,
         price,
         customTag: usesCustomTag,
+        downloadName: (req.body.downloadName || '').trim(),
         sourceFile: sma,
         amxxFile: amxx,
         extraFiles: extrasPaths

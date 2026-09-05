@@ -69,7 +69,8 @@ async function createTables() {
         price NUMERIC NOT NULL DEFAULT 0,
         active BOOLEAN NOT NULL DEFAULT true,
         custom_tag BOOLEAN NOT NULL DEFAULT true,
-sma_data BYTEA,
+        download_name TEXT,
+        sma_data BYTEA,
         amxx_data BYTEA,
         sma_name TEXT,
         amxx_name TEXT,
@@ -108,6 +109,7 @@ sma_data BYTEA,
     `);
     // Migração idempotente para bancos criados antes dessas colunas.
     await client.query(`ALTER TABLE plugins ADD COLUMN IF NOT EXISTS extra_files JSONB NOT NULL DEFAULT '[]'`);
+    await client.query(`ALTER TABLE plugins ADD COLUMN IF NOT EXISTS download_name TEXT`);
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_extras JSONB NOT NULL DEFAULT '[]'`);
   } finally {
     client.release();
@@ -119,7 +121,7 @@ async function getPlugins() {
   if (!pool) return null;
   const { rows } = await pool.query(
     `SELECT id, name, description, price, active, custom_tag,
-            sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at
+            download_name, sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at
      FROM plugins ORDER BY created_at ASC`
   );
   return rows.map(rowToPlugin);
@@ -129,7 +131,7 @@ async function getPluginById(id) {
   if (!pool) return null;
   const { rows } = await pool.query(
     `SELECT id, name, description, price, active, custom_tag,
-            sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at
+            download_name, sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at
      FROM plugins WHERE id = $1`, [id]
   );
   return rows.length ? rowToPlugin(rows[0]) : null;
@@ -138,10 +140,10 @@ async function getPluginById(id) {
 async function addPlugin(data) {
   if (!pool) return null;
   const { rows } = await pool.query(
-    `INSERT INTO plugins (id, name, description, price, active, custom_tag, sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    `INSERT INTO plugins (id, name, description, price, active, custom_tag, download_name, sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING id, name, description, price, active, custom_tag,
-               sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at`,
+               download_name, sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at`,
     [
       data.id,
       data.name,
@@ -149,6 +151,7 @@ async function addPlugin(data) {
       Number(data.price) || 0,
       data.active !== false,
       data.customTag !== false,
+      data.downloadName || null,
       data.smaData || null,
       data.amxxData || null,
       data.smaName || null,
@@ -173,6 +176,7 @@ async function updatePlugin(id, data) {
   if (data.price !== undefined) push('price', Number(data.price) || 0);
   if (data.active !== undefined) push('active', data.active !== false);
   if (data.customTag !== undefined) push('custom_tag', data.customTag !== false);
+  if (data.downloadName !== undefined) push('download_name', data.downloadName);
   if (data.smaData !== undefined) push('sma_data', data.smaData);
   if (data.amxxData !== undefined) push('amxx_data', data.amxxData);
   if (data.smaName !== undefined) push('sma_name', data.smaName);
@@ -210,6 +214,7 @@ function rowToPlugin(row) {
     price: Number(row.price),
     active: row.active,
     customTag: row.custom_tag,
+    downloadName: row.download_name,
     smaData: row.sma_data ? Buffer.from(row.sma_data) : null,
     amxxData: row.amxx_data ? Buffer.from(row.amxx_data) : null,
     smaName: row.sma_name,

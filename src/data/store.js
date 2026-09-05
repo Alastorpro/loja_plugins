@@ -156,6 +156,7 @@ async function addPlugin(data) {
       price: Number(data.price) || 0,
       active: data.active !== false,
       customTag: data.customTag !== false,
+      downloadName: data.downloadName || null,
       smaData: sma.buf,
       amxxData: amxx.buf,
       smaName: sma.name,
@@ -176,6 +177,7 @@ async function addPlugin(data) {
     price: Number(data.price),
     active: data.active !== false,
     customTag: data.customTag !== false,
+    downloadName: data.downloadName || null,
     sourceFile: data.sourceFile || null,
     amxxFile: data.amxxFile || null,
     extraFiles: (data.extraFiles || []).slice(),
@@ -194,6 +196,7 @@ async function updatePlugin(id, data) {
     if (data.price !== undefined) upd.price = Number(data.price) || 0;
     if (data.active !== undefined) upd.active = !!data.active;
     if (data.customTag !== undefined) upd.customTag = !!data.customTag;
+    if (data.downloadName !== undefined) upd.downloadName = !!data.downloadName ? String(data.downloadName) : null;
     if (data.sourceFile) {
       const sma = bufferFromPath(data.sourceFile);
       upd.smaData = sma.buf;
