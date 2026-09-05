@@ -69,10 +69,11 @@ async function createTables() {
         price NUMERIC NOT NULL DEFAULT 0,
         active BOOLEAN NOT NULL DEFAULT true,
         custom_tag BOOLEAN NOT NULL DEFAULT true,
-        sma_data BYTEA,
+sma_data BYTEA,
         amxx_data BYTEA,
         sma_name TEXT,
         amxx_name TEXT,
+        extra_files JSONB NOT NULL DEFAULT '[]',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
       CREATE TABLE IF NOT EXISTS orders (
@@ -99,19 +100,15 @@ async function createTables() {
         error_msg TEXT,
         delivery_data BYTEA,
         delivery_name TEXT,
+        delivery_extras JSONB NOT NULL DEFAULT '[]',
         admin_sma_data BYTEA,
         admin_sma_name TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
-      CREATE TABLE IF NOT EXISTS suggestions (
-        id TEXT PRIMARY KEY,
-        text TEXT NOT NULL,
-        author TEXT NOT NULL DEFAULT 'Anônimo',
-        read BOOLEAN NOT NULL DEFAULT false,
-        read_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      );
     `);
+    // Migração idempotente para bancos criados antes dessas colunas.
+    await client.query(`ALTER TABLE plugins ADD COLUMN IF NOT EXISTS extra_files JSONB NOT NULL DEFAULT '[]'`);
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_extras JSONB NOT NULL DEFAULT '[]'`);
   } finally {
     client.release();
   }
@@ -122,7 +119,7 @@ async function getPlugins() {
   if (!pool) return null;
   const { rows } = await pool.query(
     `SELECT id, name, description, price, active, custom_tag,
-            sma_data, amxx_data, sma_name, amxx_name, created_at
+            sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at
      FROM plugins ORDER BY created_at ASC`
   );
   return rows.map(rowToPlugin);
@@ -132,7 +129,7 @@ async function getPluginById(id) {
   if (!pool) return null;
   const { rows } = await pool.query(
     `SELECT id, name, description, price, active, custom_tag,
-            sma_data, amxx_data, sma_name, amxx_name, created_at
+            sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at
      FROM plugins WHERE id = $1`, [id]
   );
   return rows.length ? rowToPlugin(rows[0]) : null;
@@ -141,10 +138,10 @@ async function getPluginById(id) {
 async function addPlugin(data) {
   if (!pool) return null;
   const { rows } = await pool.query(
-    `INSERT INTO plugins (id, name, description, price, active, custom_tag, sma_data, amxx_data, sma_name, amxx_name, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    `INSERT INTO plugins (id, name, description, price, active, custom_tag, sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
      RETURNING id, name, description, price, active, custom_tag,
-               sma_data, amxx_data, sma_name, amxx_name, created_at`,
+               sma_data, amxx_data, sma_name, amxx_name, extra_files, created_at`,
     [
       data.id,
       data.name,
@@ -156,6 +153,7 @@ async function addPlugin(data) {
       data.amxxData || null,
       data.smaName || null,
       data.amxxName || null,
+      toExtrasJson(data.extraFiles),
       data.createdAt || new Date().toISOString()
     ]
   );
@@ -179,6 +177,7 @@ async function updatePlugin(id, data) {
   if (data.amxxData !== undefined) push('amxx_data', data.amxxData);
   if (data.smaName !== undefined) push('sma_name', data.smaName);
   if (data.amxxName !== undefined) push('amxx_name', data.amxxName);
+  if (data.extraFiles !== undefined) push('extra_files', toExtrasJson(data.extraFiles));
 
   if (set.length === 0) return getPluginById(id);
   vals.push(id);
@@ -193,7 +192,17 @@ async function deletePlugin(id) {
   await pool.query('DELETE FROM plugins WHERE id=$1', [id]);
 }
 
+// extraFiles -> [{ name, buf }] -> JSON string p/ JSONB (pg exige string, não array).
+function toExtrasJson(extraFiles) {
+  if (!Array.isArray(extraFiles) || extraFiles.length === 0) return '[]';
+  return JSON.stringify(extraFiles.map(ef => ({
+    name: ef.name || 'arquivo',
+    data: ef.buf ? Buffer.from(ef.buf).toString('base64') : (ef.data || null)
+  })));
+}
+
 function rowToPlugin(row) {
+  const extras = Array.isArray(row.extra_files) ? row.extra_files : [];
   return {
     id: row.id,
     name: row.name,
@@ -205,6 +214,10 @@ function rowToPlugin(row) {
     amxxData: row.amxx_data ? Buffer.from(row.amxx_data) : null,
     smaName: row.sma_name,
     amxxName: row.amxx_name,
+    extraFiles: extras.map(ef => ({
+      name: ef.name || 'arquivo',
+      data: ef.data ? Buffer.from(ef.data, 'base64') : null
+    })),
     createdAt: new Date(row.created_at).toISOString()
   };
 }
@@ -273,10 +286,20 @@ async function updateOrder(id, data) {
     adminSmaFile: 'admin_sma_file', adminSmaUrl: 'admin_sma_url',
     pendingSma: 'pending_sma', compileOutput: 'compile_output', notice: 'notice',
     error: 'error_msg', deliveryData: 'delivery_data', deliveryName: 'delivery_name',
+    deliveryExtras: 'delivery_extras',
     adminSmaData: 'admin_sma_data', adminSmaName: 'admin_sma_name'
   };
   for (const [key, val] of Object.entries(data)) {
-    if (val !== undefined && fieldMap[key]) push(fieldMap[key], val);
+    if (val === undefined || !fieldMap[key]) continue;
+    if (key === 'deliveryExtras') {
+      const list = Array.isArray(val) ? val : [];
+      push(fieldMap[key], JSON.stringify(list.map(e => ({
+        name: e.name || 'arquivo',
+        data: e.data ? Buffer.from(e.data).toString('base64') : null
+      }))));
+    } else {
+      push(fieldMap[key], val);
+    }
   }
   if (set.length === 0) return getOrderById(id);
   vals.push(id);
@@ -311,6 +334,10 @@ function rowToOrder(row) {
     error: row.error_msg,
     deliveryData: row.delivery_data ? Buffer.from(row.delivery_data) : null,
     deliveryName: row.delivery_name,
+    deliveryExtras: (Array.isArray(row.delivery_extras) ? row.delivery_extras : []).map(e => ({
+      name: e.name || 'arquivo',
+      data: e.data ? Buffer.from(e.data, 'base64') : null
+    })),
     adminSmaData: row.admin_sma_data ? Buffer.from(row.admin_sma_data) : null,
     adminSmaName: row.admin_sma_name,
     createdAt: new Date(row.created_at).toISOString()

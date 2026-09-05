@@ -9,6 +9,26 @@ const { notifyOrder } = require('./discord');
 
 const DELIVER_DIR = path.join(DATA_DIR, 'deliver');
 
+// Cria um {name, path} a partir de cada entrada de extraFiles do plugin.
+function normalizeExtras(plugin) {
+  return (plugin.extraFiles || []).map(ef => {
+    if (typeof ef === 'string') return { name: path.basename(ef), path: ef };
+    return { name: ef.name || path.basename(ef.path || 'arquivo'), path: ef.path };
+  }).filter(ef => ef.path && fs.existsSync(ef.path));
+}
+
+// Copia os arquivos extras para a pasta do pedido e devolve [{name, data}].
+function copyExtras(plugin, finalDir) {
+  const items = normalizeExtras(plugin);
+  const out = [];
+  for (const ef of items) {
+    const dest = path.join(finalDir, ef.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
+    if (!fs.existsSync(dest)) fs.copyFileSync(ef.path, dest);
+    out.push({ name: path.basename(dest), data: fs.readFileSync(dest) });
+  }
+  return out;
+}
+
 /**
  * Entrega um pedido já aprovado:
  *  - gera o .sma personalizado
@@ -47,6 +67,7 @@ async function processApprovedPayment(payment) {
 
     // Guarda os bytes no banco para o download sobreviver a restart/deploy
     const deliveryData = fs.readFileSync(finalPath);
+    const deliveryExtras = copyExtras(plugin, finalDir);
 
     const logged = {
       paymentId,
@@ -61,7 +82,8 @@ async function processApprovedPayment(payment) {
       compileOutput: null,
       paymentStatus: 'approved',
       deliveryData,
-      deliveryName: path.basename(finalPath)
+      deliveryName: path.basename(finalPath),
+      deliveryExtras
     };
 
     await updateOrder(order.id, logged);
@@ -79,6 +101,7 @@ async function processApprovedPayment(payment) {
       fs.mkdirSync(finalDir, { recursive: true });
       const finalPath = path.join(finalDir, path.basename(fileInfo.path));
       fs.copyFileSync(fileInfo.path, finalPath);
+      const deliveryExtras = copyExtras(plugin, finalDir);
 
       // Guarda também o .sma personalizado (só visível no admin, para conferir a tag)
       let adminSmaFile = null;
@@ -106,6 +129,7 @@ async function processApprovedPayment(payment) {
         paymentStatus: 'approved',
         deliveryData: fs.readFileSync(finalPath),
         deliveryName: path.basename(finalPath),
+        deliveryExtras,
         adminSmaData,
         adminSmaName
       };

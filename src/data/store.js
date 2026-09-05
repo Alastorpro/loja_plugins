@@ -71,6 +71,18 @@ function materializePlugin(p) {
     if (!fs.existsSync(amxxPath)) writeBytes(amxxPath, Buffer.from(p.amxxData));
     p.amxxFile = amxxPath;
   }
+  // Arquivos extras: grava os bytes e expõe caminhos prontos para entrega.
+  const extras = [];
+  if (Array.isArray(p.extraFiles)) {
+    p.extraFiles.forEach((ef, i) => {
+      if (!ef.data || !ef.data.length) return;
+      const ext = path.extname(ef.name) || '.amxx';
+      const extraPath = path.join(SOURCES_DIR, `${p.id}_extra_${i}${ext}`);
+      if (!fs.existsSync(extraPath)) writeBytes(extraPath, Buffer.from(ef.data));
+      extras.push({ name: ef.name, path: extraPath });
+    });
+  }
+  p.extraFiles = extras;
   // Remove os buffers do objeto público (os caminhos já foram materializados)
   delete p.smaData;
   delete p.amxxData;
@@ -131,6 +143,9 @@ async function getPluginById(id) {
 }
 
 async function addPlugin(data) {
+  // data.extraFiles = lista de caminhos de arquivos extras (upload multer)
+  const readExtras = () => (data.extraFiles || []).map(p => bufferFromPath(p)).filter(e => e.buf);
+
   if (useDb) {
     const sma = bufferFromPath(data.sourceFile);
     const amxx = bufferFromPath(data.amxxFile);
@@ -145,10 +160,11 @@ async function addPlugin(data) {
       amxxData: amxx.buf,
       smaName: sma.name,
       amxxName: amxx.name,
+      extraFiles: readExtras(),
       createdAt: new Date().toISOString()
     };
     const saved = await db.addPlugin(record);
-    cleanupTempFiles(data.sourceFile, data.amxxFile);
+    cleanupTempFiles(data.sourceFile, data.amxxFile, ...(data.extraFiles || []));
     return materializePlugin(saved);
   }
 
@@ -162,6 +178,7 @@ async function addPlugin(data) {
     customTag: data.customTag !== false,
     sourceFile: data.sourceFile || null,
     amxxFile: data.amxxFile || null,
+    extraFiles: (data.extraFiles || []).slice(),
     createdAt: new Date().toISOString()
   };
   plugins.push(plugin);
@@ -187,8 +204,11 @@ async function updatePlugin(id, data) {
       upd.amxxData = amxx.buf;
       upd.amxxName = amxx.name;
     }
+    if (data.extraFiles) {
+      upd.extraFiles = data.extraFiles.map(p => bufferFromPath(p)).filter(e => e.buf);
+    }
     const saved = await db.updatePlugin(id, upd);
-    cleanupTempFiles(data.sourceFile, data.amxxFile);
+    cleanupTempFiles(data.sourceFile, data.amxxFile, ...(data.extraFiles || []));
     return materializePlugin(saved);
   }
 
@@ -205,6 +225,13 @@ async function deletePlugin(id) {
     await db.deletePlugin(id);
     removeFile(path.join(SOURCES_DIR, `${id}.sma`));
     removeFile(path.join(SOURCES_DIR, `${id}.amxx`));
+    // Remove os arquivos extras materializados (<id>_extra_*.<ext>)
+    const prefix = path.join(SOURCES_DIR, `${id}_extra_`);
+    try {
+      for (const f of fs.readdirSync(SOURCES_DIR)) {
+        if (f.startsWith(path.basename(prefix))) removeFile(path.join(SOURCES_DIR, f));
+      }
+    } catch (e) { /* ignora */ }
     return;
   }
   const plugins = readJSON(PLUGINS_FILE, []);

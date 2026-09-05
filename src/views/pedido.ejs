@@ -1,7 +1,7 @@
 <%- include('partials/head', {
   title: 'Meu pedido',
   page: 'pedido',
-  headExtra: order.downloadUrl
+  headExtra: order.downloadUrl && (!order.deliveryExtras || order.deliveryExtras.length === 0)
     ? `<meta http-equiv="refresh" content="3;url=${order.downloadUrl}">`
     : ''
 }) %>
@@ -29,9 +29,23 @@
     <p>Valor: <strong>R$ <%= Number(order.price).toFixed(2) %></strong></p>
 
     <% if (order.downloadUrl) { %>
+      <% const files = [
+           { name: order.deliveryName || 'plugin.amxx', url: order.downloadUrl, main: true }
+         ].concat((order.deliveryExtras || []).filter(e => e.name).map(e => ({
+           name: e.name,
+           url: `/download/${order.id}/${e.name}`
+         }))); %>
       <div class="alert success">
-        <p>Seu plugin está pronto para download! Iniciando o download automaticamente...</p>
-        <a href="<%= order.downloadUrl %>" class="btn-primary">Baixar plugin (.amxx)</a>
+        <% if (files.length === 1) { %>
+          <p>Seu plugin está pronto para download! Iniciando o download automaticamente...</p>
+        <% } else { %>
+          <p>Seu pacote está pronto! Baixe todos os arquivos abaixo:</p>
+        <% } %>
+        <div class="downloads">
+          <% files.forEach(f => { %>
+            <a href="<%= f.url %>" class="btn-primary"><%= f.main ? 'Baixar plugin (.amxx)' : ('Baixar ' + f.name) %></a>
+          <% }) %>
+        </div>
       </div>
     <% } else if (order.status === 'needs_compile') { %>
       <p class="muted">Pagamento confirmado. Seu plugin está sendo preparado — em breve o download do <code>.amxx</code> aparecerá aqui.</p>

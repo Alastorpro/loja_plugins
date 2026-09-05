@@ -74,6 +74,10 @@
         <input type="file" name="amxx" accept=".amxx">
         <span class="muted small">Se enviar o .amxx pronto, o cliente recebe <strong>exatamente este arquivo</strong>, sem tag nem edição. (Sem .amxx, o plugin usa o .sma com tag.)</span>
       </label>
+      <label>Arquivos extras (opcional — entregues junto)
+        <input type="file" name="extras" accept=".amxx" multiple>
+        <span class="muted small">Um ou mais <code>.amxx</code> que acompanham a compra (ex: pacote de plugins, mapa, CFG). Todos os arquivos aparecem no download do cliente.</span>
+      </label>
       <button type="submit" class="btn-primary">Cadastrar plugin</button>
     </form>
   </section>
@@ -90,7 +94,7 @@
           <tr>
             <td><%= p.name %></td>
             <td>R$ <%= Number(p.price).toFixed(2) %></td>
-            <td><%= p.amxxFile ? 'Pronto (.amxx)' : 'Com tag (.sma)' %></td>
+            <td><%= p.amxxFile ? 'Pronto (.amxx)' : 'Com tag (.sma)' %><% if (p.extraFiles && p.extraFiles.length) { %> + <%= p.extraFiles.length %> extra(s)<% } %></td>
             <td><span class="status <%= p.active ? 'status-active' : 'status-inactive' %>"><%= p.active ? 'Ativo' : 'Inativo' %></span></td>
             <td class="actions">
               <form action="/admin/plugins/<%= p.id %>/edit" method="POST" style="display:inline-flex;gap:6px;align-items:center">

@@ -91,24 +91,35 @@ router.get('/plugin/:id', async (req, res) => {
   res.render('plugin', { plugin });
 });
 
-// Download do arquivo entregue
+// Download do arquivo entregue (plugin principal e arquivos extras)
 router.get('/download/:orderId/:file', async (req, res) => {
   const order = await getOrderById(req.params.orderId);
   const file = req.params.file;
 
-  if (!order || !order.downloadUrl || order.downloadUrl !== `/download/${order.id}/${file}`) {
-    return res.status(404).render('404');
-  }
+  if (!order || order.status !== 'delivered') return res.status(404).render('404');
+
+  // Arquivos válidos: o principal (deliveryName) e cada extra entregue (deliveryExtras)
+  const mainFile = order.deliveryName || path.basename(order.deliveryFile || '');
+  const extras = order.deliveryExtras || [];
+  const valid = file === mainFile ||
+    (order.downloadUrl && order.downloadUrl === `/download/${order.id}/${file}`) ||
+    extras.some(e => e.name === file);
+  if (!valid) return res.status(404).render('404');
 
   const fullPath = path.join(DATA_DIR, 'deliver', order.id, file);
   if (fs.existsSync(fullPath)) return res.download(fullPath, file);
 
-  // Fallback: .amxx entregue guardado no banco (bytes) — sobrevive a restart/deploy
-  if (order.deliveryData && order.deliveryData.length) {
-    const name = order.deliveryName || file;
+  // Fallback: bytes guardados no banco — sobrevivem a restart/deploy
+  if (order.deliveryData && order.deliveryData.length && file === mainFile) {
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${mainFile}"`);
     return res.send(Buffer.from(order.deliveryData));
+  }
+  const extra = extras.find(e => e.name === file);
+  if (extra && extra.data && extra.data.length) {
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${extra.name}"`);
+    return res.send(Buffer.from(extra.data));
   }
 
   return res.status(404).render('404');

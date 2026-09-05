@@ -28,7 +28,7 @@ const upload = multer({
     if (file.fieldname === 'amxx' && ext !== '.amxx') return cb(new Error('O arquivo .amxx deve ter extensão .amxx.'));
     cb(null, true);
   }
-}).fields([{ name: 'sma', maxCount: 1 }, { name: 'amxx', maxCount: 1 }]);
+}).fields([{ name: 'sma', maxCount: 1 }, { name: 'amxx', maxCount: 1 }, { name: 'extras', maxCount: 10 }]);
 
 function requireAuth(req, res, next) {
   if (req.session.isAdmin) return next();
@@ -92,7 +92,8 @@ router.post('/plugins', requireAuth, (req, res) => {
         price,
         customTag: usesCustomTag,
         sourceFile: sma ? sma.path : null,
-        amxxFile: amxx ? amxx.path : null
+        amxxFile: amxx ? amxx.path : null,
+        extraFiles: (files['extras'] || []).map(f => f.path)
       });
     } catch (e) {
       console.error('[Admin] Falha ao salvar plugin:', e.message);
