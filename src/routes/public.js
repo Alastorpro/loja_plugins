@@ -127,12 +127,30 @@ router.get('/download/:orderId/:file', async (req, res) => {
 
 // Página "obrigado" após pagamento
 router.get('/checkout/obrigado', async (req, res) => {
-  const order = req.query.order_id
+  let order = req.query.order_id
     ? await getOrderById(req.query.order_id)
-    : (req.query.preference_id ? undefined : null);
+    : null;
+  const paymentId = req.query.collection_id || req.query.payment_id;
+
+  // Fallback automático: se o webhook não chegou, consulta o status no MP
+  // aqui (o MP manda o payment_id via redirect) e entrega na hora.
+  if (order && paymentId && (order.status === 'pending' || order.status === 'needs_compile')) {
+    try {
+      const { getPaymentStatus } = require('../services/mercadopago');
+      const { processApprovedPayment } = require('../services/delivery');
+      const payment = await getPaymentStatus(paymentId);
+      if (payment && payment.status === 'approved') {
+        await processApprovedPayment(payment);
+        order = await getOrderById(order.id);
+      }
+    } catch (e) {
+      console.error('[Obrigado] Falha ao consultar pagamento:', e.message);
+    }
+  }
+
   res.render('obrigado', {
     order: order || null,
-    collection_id: req.query.collection_id || req.query.payment_id || undefined
+    collection_id: paymentId
   });
 });
 
