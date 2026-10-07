@@ -372,6 +372,17 @@ async function deleteOrder(id) {
   await pool.query('DELETE FROM orders WHERE id=$1', [id]);
 }
 
+// Cancela pedidos pendentes mais antigos que o prazo (30 min sem pagamento)
+async function cancelExpiredOrders(cutoff) {
+  if (!pool) return [];
+  const { rows } = await pool.query(
+    `UPDATE orders SET status='cancelled', payment_status='cancelled'
+     WHERE status='pending' AND created_at < $1
+     RETURNING id`, [cutoff]
+  );
+  return rows;
+}
+
 // ===== Sugestões =====
 async function getSuggestions() {
   if (!pool) return null;
@@ -430,5 +441,6 @@ module.exports = {
   getPlugins, getPluginById, addPlugin, updatePlugin, deletePlugin,
   getOrders, getOrderById, getOrderByPreferenceId, getOrderByPaymentId,
   createOrder, updateOrder, deleteOrder, getArchivedOrders, setOrderArchived,
+  cancelExpiredOrders,
   getSuggestions, addSuggestion, markSuggestionRead, deleteSuggestion, purgeExpiredSuggestions
 };

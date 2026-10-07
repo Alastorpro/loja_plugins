@@ -15,6 +15,7 @@
         paid: 'Pagamento confirmado',
         delivered: 'Aprovado e entregue',
         needs_compile: 'Pagamento aprovado - compilando...',
+        cancelled: 'Cancelado - pagamento não confirmado',
         error: 'Erro no processamento'
       }; %>
       <span class="status status-<%= order.status %>"><%= labels[order.status] || order.status %></span>
@@ -51,6 +52,9 @@
       <p class="muted">Pagamento confirmado. Seu plugin está sendo preparado — em breve o download do <code>.amxx</code> aparecerá aqui.</p>
     <% } else if (order.status === 'pending') { %>
       <p class="muted">Assim que o pagamento for aprovado, o download aparecerá aqui automaticamente.</p>
+    <% } else if (order.status === 'cancelled') { %>
+      <p class="muted">Este pedido foi cancelado porque o pagamento não foi confirmado em até 30 minutos.</p>
+      <p class="muted small">Caso ainda queira o plugin, volte para a loja e faça um novo pedido.</p>
     <% } %>
 
     <% if (!order.downloadUrl && (order.status === 'pending' || order.status === 'needs_compile')) { %>

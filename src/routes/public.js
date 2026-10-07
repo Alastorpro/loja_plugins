@@ -4,8 +4,17 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-const { getPublicPlugins, getOrderById, DATA_DIR } = require('../data/store');
+const { getPublicPlugins, getOrderById, DATA_DIR, cancelExpiredOrders, ORDER_TTL } = require('../data/store');
 const { compileStandalone } = require('../services/compiler');
+
+// Se o pedido passou de 30 min pendente, cancela na hora (sweep roda a cada 1 min no servidor)
+async function refreshOrderStatus(order) {
+  if (order && order.status === 'pending' && Date.now() - new Date(order.createdAt).getTime() > ORDER_TTL) {
+    await cancelExpiredOrders();
+    return (await getOrderById(order.id)) || order;
+  }
+  return order;
+}
 
 // ===== Compilador avulso (tipo amx.worldcs.ro) =====
 const compilerWork = path.join(DATA_DIR, 'compiler-work');
@@ -166,14 +175,16 @@ router.get('/checkout/falhou', (req, res) => {
 
 // Página "rastreando pedido" pelo ID
 router.get('/pedido/:id', async (req, res) => {
-  const order = await getOrderById(req.params.id);
+  let order = await getOrderById(req.params.id);
+  order = await refreshOrderStatus(order);
   if (!order) return res.status(404).render('404');
   res.render('pedido', { order });
 });
 
 // Status de um pedido (usado pelo auto-refresh da página de status)
 router.get('/api/order/:id/status', async (req, res) => {
-  const order = await getOrderById(req.params.id);
+  let order = await getOrderById(req.params.id);
+  order = await refreshOrderStatus(order);
   if (!order) return res.status(404).json({ error: 'not-found' });
   res.json({ status: order.status, delivered: !!order.downloadUrl });
 });

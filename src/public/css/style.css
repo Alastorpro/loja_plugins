@@ -150,6 +150,7 @@ body {
 .status-needs_compile { background: rgba(243,156,18,.15); color: var(--warn); }
 .status-pending { background: rgba(243,156,18,.15); color: var(--warn); }
 .status-error, .status-55 { background: rgba(232,17,35,.15); color: var(--danger); }
+.status-cancelled { background: rgba(155,160,174,.2); color: var(--muted); }
 .status-complex { background: rgba(232,17,35,.15); color: var(--primary); }
 .status-delivered-lite { background: rgba(232,17,35,.12); color: var(--primary); }
 

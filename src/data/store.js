@@ -9,6 +9,7 @@ const PLUGINS_FILE = path.join(DATA_DIR, 'plugins.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const SUGGESTIONS_FILE = path.join(DATA_DIR, 'suggestions.json');
 const SUGGESTION_TTL = 24 * 60 * 60 * 1000; // 24 horas
+const ORDER_TTL = 30 * 60 * 1000; // 30 minutos sem pagamento = pedido cancelado
 
 let useDb = false;
 
@@ -334,6 +335,24 @@ async function deleteOrder(id) {
   writeJSON(ORDERS_FILE, readJSON(ORDERS_FILE, []).filter(o => o.id !== id));
 }
 
+// Cancela pedidos pendentes que passaram do prazo de 30 min sem pagamento.
+async function cancelExpiredOrders() {
+  const cutoff = new Date(Date.now() - ORDER_TTL);
+  if (useDb) return (await db.cancelExpiredOrders(cutoff)) || [];
+  const orders = readJSON(ORDERS_FILE, []);
+  const expired = [];
+  for (const o of orders) {
+    if (o.status === 'pending' && new Date(o.createdAt).getTime() < cutoff.getTime()) {
+      o.status = 'cancelled';
+      o.paymentStatus = 'cancelled';
+      o.cancelledAt = new Date().toISOString();
+      expired.push(o);
+    }
+  }
+  if (expired.length) writeJSON(ORDERS_FILE, orders);
+  return expired;
+}
+
 // ===== Sugestões =====
 async function getSuggestions() {
   if (useDb) {
@@ -404,6 +423,7 @@ module.exports = {
   getOrders, getOrderById,
   getOrderByPreferenceId, getOrderByPaymentId,
   createOrder, updateOrder, deleteOrder, getArchivedOrders, setOrderArchived,
+  cancelExpiredOrders, ORDER_TTL,
   getSuggestions, addSuggestion, markSuggestionRead, deleteSuggestion, purgeExpiredSuggestions,
   DATA_DIR
 };

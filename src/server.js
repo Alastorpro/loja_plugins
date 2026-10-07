@@ -5,7 +5,7 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const path = require('path');
 
-const { initData, purgeExpiredSuggestions } = require('./data/store');
+const { initData, purgeExpiredSuggestions, cancelExpiredOrders } = require('./data/store');
 const db = require('./data/db');
 const { initCompiler } = require('./services/compiler');
 const { initMercadoPago } = require('./services/mercadopago');
@@ -68,6 +68,9 @@ async function start() {
   // Sugestões não lidas expiram após 24h
   await purgeExpiredSuggestions();
   setInterval(() => { purgeExpiredSuggestions().catch(() => {}); }, 60 * 60 * 1000);
+  // Pedidos pendentes sem pagamento são cancelados após 30 min
+  await cancelExpiredOrders();
+  setInterval(() => { cancelExpiredOrders().catch(() => {}); }, 60 * 1000);
   app.listen(process.env.PORT || 3000, () => {
     console.log(`Servidor rodando em ${process.env.APP_URL || 'http://localhost:3000'}`);
   });
