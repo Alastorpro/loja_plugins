@@ -171,6 +171,13 @@ router.get('/pedido/:id', async (req, res) => {
   res.render('pedido', { order });
 });
 
+// Status de um pedido (usado pelo auto-refresh da página de status)
+router.get('/api/order/:id/status', async (req, res) => {
+  const order = await getOrderById(req.params.id);
+  if (!order) return res.status(404).json({ error: 'not-found' });
+  res.json({ status: order.status, delivered: !!order.downloadUrl });
+});
+
 // ===== Sugestões =====
 router.get('/sugestao', (req, res) => {
   res.render('sugestao', { success: null, error: null });

@@ -27,7 +27,7 @@
       <div class="alert error"><%= error %></div>
     <% } %>
 
-    <form action="/checkout/create" method="POST" class="form">
+    <form action="/checkout/create" method="POST" class="form" id="checkout-form">
       <input type="hidden" name="pluginId" value="<%= plugin.id %>">
 
       <label>
@@ -42,9 +42,52 @@
         </label>
       <% } %>
 
+      <div class="alert error" id="checkout-error" style="display:none"></div>
+
       <button type="submit" class="btn-primary full">Ir para o pagamento</button>
       <p class="muted small">Pagamento processado com segurança pelo Mercado Pago.</p>
     </form>
+
+    <script>
+      document.getElementById('checkout-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var errBox = document.getElementById('checkout-error');
+        errBox.style.display = 'none';
+        var btn = this.querySelector('button[type=submit]');
+        btn.disabled = true;
+        btn.textContent = 'Abrindo pagamento...';
+        try {
+          var body = new URLSearchParams(new FormData(this)).toString();
+          var r = await fetch('/checkout/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+            body: body
+          });
+          var data = await r.json().catch(function () { return {}; });
+          if (!r.ok || data.error) {
+            errBox.textContent = data.error || 'Erro ao criar o pagamento. Tente novamente.';
+            errBox.style.display = 'block';
+            return;
+          }
+          if (data.demo) {
+            window.location.href = data.url;
+          } else {
+            var tab = window.open(data.url, '_blank');
+            if (!tab) {
+              window.location.href = data.url;
+            } else {
+              window.location.href = '/pedido/' + data.orderId;
+            }
+          }
+        } catch (err) {
+          errBox.textContent = 'Erro ao criar o pagamento. Tente novamente.';
+          errBox.style.display = 'block';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Ir para o pagamento';
+        }
+      });
+    </script>
   </section>
 </main>
 <%- include('partials/tail') %>

@@ -43,7 +43,7 @@
         <% } %>
         <div class="downloads">
           <% files.forEach(f => { %>
-            <a href="<%= f.url %>" class="btn-primary"><%= f.main ? 'Baixar plugin (.amxx)' : ('Baixar ' + f.name) %></a>
+            <a href="<%= f.url %>" class="btn-primary"><%= f.name %></a>
           <% }) %>
         </div>
       </div>
@@ -52,6 +52,31 @@
     <% } else if (order.status === 'pending') { %>
       <p class="muted">Assim que o pagamento for aprovado, o download aparecerá aqui automaticamente.</p>
     <% } %>
+
+    <% if (!order.downloadUrl && (order.status === 'pending' || order.status === 'needs_compile')) { %>
+      <p class="muted small" id="auto-msg" style="margin-top:12px">Acompanhando o pagamento — esta página atualiza sozinha...</p>
+    <% } %>
   </section>
 </main>
 <%- include('partials/tail') %>
+<script>
+  var orderStatus = '<%= order.status %>';
+  var orderDelivered = <%= order.downloadUrl ? 'true' : 'false' %>;
+  var orderId = '<%= order.id %>';
+  if (!orderDelivered && (orderStatus === 'pending' || orderStatus === 'needs_compile')) {
+    (function poll() {
+      setTimeout(function () {
+        fetch('/api/order/' + orderId + '/status')
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d.delivered) {
+              window.location.reload();
+            } else {
+              poll();
+            }
+          })
+          .catch(function () { poll(); });
+      }, 4000);
+    })();
+  }
+</script>
